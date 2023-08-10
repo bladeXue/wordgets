@@ -1020,9 +1020,9 @@ class wordgets(toga.App):
             """
             cursor.execute(sql,(g_strOpenedWordListName, g_iTmpPrevWordNo, g_iTmpPrevCardType))
         # Update tag
-        cursor.execute("SELECT COUNT(*) FROM statistics WHERE wordlist = ? AND review_date IS NULL",(g_strOpenedWordListName,))
-        iCntStudiedCards = cursor.fetchone()[0]
         cursor.execute("SELECT COUNT(*) FROM statistics WHERE wordlist = ? AND review_date IS NOT NULL",(g_strOpenedWordListName,))
+        iCntStudiedCards = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM statistics WHERE wordlist = ? AND review_date IS NULL",(g_strOpenedWordListName,))
         iCntRestNewCards = cursor.fetchone()[0]
         cursor.execute("SELECT COUNT(*) FROM statistics WHERE wordlist = ? AND review_date <= ?", (g_strOpenedWordListName, strToday))
         iCntDueTimeCards = cursor.fetchone()[0]
