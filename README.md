@@ -84,3 +84,6 @@ Future plans (may not realize for heavy work):
 
     为桌面操作系统平台加一个启动器，用于隐藏标题栏并让程序始终置顶，实现类似于Windows Vista系统的小工具的样式。
 
+Welcome developers who want to help improve! Contact [leaffeather@foxmail.com](mailto://leaffeather@foxmail.com)
+
+欢迎任何想帮忙改进的开发者！请联系[leaffeather@foxmail.com](mailto://leaffeather@foxmail.com)
