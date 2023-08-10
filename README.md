@@ -6,7 +6,7 @@ Wordgets是一个单词记忆桌面小工具。
 
 ==警告：当前版本不稳定。切勿完全把它当成日常单词记忆工具。代码用于学习和交流用途。==
 
-![wordgets](https://github.com/leaffeather/images/blob/main/wordgets_.png?raw=true)
+![wordgets](https://github.com/leaffeather/images/blob/main/wordgets.png?raw=true)
 
 This project is based on [**BeeWare**](https://github.com/beeware) - a cross-platform Python GUI library. The App could have been made up as a desktop gadget, while the final fruit could only seems something simple due to the lack of many functions relative to UI design. It has the following features:
 
