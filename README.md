@@ -68,9 +68,9 @@ Known problems:
 *   Scroll bars in Management does not work in Windows. Currently, when the information of a card or a word list you add just displays abnormally, you should change the window size of Management.
 
     管理器的滚动条在Windows上失效。当前，当你添加的卡片或者单词表信息显示异常，你需要调整管理器的窗口大小。
-*   There could be something unreasonable in the used memory algorithm [SuperMemo2](https://pypi.org/project/supermemo2/). The selection of feeling strange(quality=0) and vague(quality=2) will return the same next review date (i.e. 1 day later). Currently the solution is that a word with quality=0 should be review today. Also, I have not seen what regulation should be adopted to compute the review priority of the studied words. Currently, I use a policy that GPT recommends: the former the review date, or the smaller the value of the expression `$ easiness^{repetitions}/{interval} $` with the same review date, the urgent the review of the word.
+*   There could be something unreasonable in the used memory algorithm [SuperMemo2](https://pypi.org/project/supermemo2/). The selection of feeling strange(quality=0) and vague(quality=2) will return the same next review date (i.e. 1 day later). Currently the solution is that a word with quality=0 should be review today. Also, I have not seen what regulation should be adopted to compute the review priority of the studied words. Currently, I use a policy that GPT recommends: the former the review date, or the smaller the value of the expression $ easiness^{repetitions}/{interval} $ with the same review date, the urgent the review of the word.
 
-    使用的SuperMemo2算法可能有些不合理的地方。选择感到陌生（quality=0）和模糊（quality=2）得到的下一次复习日期是一致的（即都是一天后）。当前的解决方法是quality=0时，今天之内应当再次复习。此外，我没有看到如何计算学习过的单词的优先级的规则。当前，我使用的是GPT推荐的策略：复习日期越早或者相同日期的情况下表达式`$ easiness^{repetitions}/{interval} $`的值越小，词的复习越紧急。
+    使用的SuperMemo2算法可能有些不合理的地方。选择感到陌生（quality=0）和模糊（quality=2）得到的下一次复习日期是一致的（即都是一天后）。当前的解决方法是quality=0时，今天之内应当再次复习。此外，我没有看到如何计算学习过的单词的优先级的规则。当前，我使用的是GPT推荐的策略：复习日期越早或者相同日期的情况下表达式$ easiness^{repetitions}/{interval} $的值越小，词的复习越紧急。
 *   Not support auto-play sound. It limits by browser policy for saving net flow.
 
     不支持自动播放音频。这是受到了浏览器节约流量的策略的限制所致。
