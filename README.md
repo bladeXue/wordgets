@@ -1,16 +1,18 @@
 # Wordgets: A word memory desktop gadget
 
-**==ALERT==**==: The current version is unstable. DO NOT TAKE IT AS THE FULL OF YOUR DAILY-USED WORD-MEMORY TOOL.==
+Wordgets是一个单词记忆桌面小工具。
 
-== 警告：当前版本不稳定。切勿完全把它当成日常单词记忆工具。==
+==**ALERT**: The current version is unstable. DO NOT TAKE IT AS THE FULL OF YOUR DAILY-USED WORD-MEMORY TOOL.==
 
-This project is based on **BeeWare** - a cross-platform Python GUI library. The App could have been made up as a desktop gadget, while the final fruit could only seems something simple due to the lack of many functions relative to UI design. It has the following features:
+==警告：当前版本不稳定。切勿完全把它当成日常单词记忆工具。==
+
+This project is based on [**BeeWare**](https://github.com/beeware) - a cross-platform Python GUI library. The App could have been made up as a desktop gadget, while the final fruit could only seems something simple due to the lack of many functions relative to UI design. It has the following features:
 
 该项目基于BeeWare，这是一个跨平台的Python图形用户界面库。本来程序可以做成桌面小工具，但由于缺少与用户界面有关的许多功能，最终结果看上去只能是比较简单的一个东西。此应用有如下特征：
 
-*   Compared to Anki, **the rearend is supported**, which is the maximum motivation that I developed this app. The rearend part of rendering a template webpage is separated from the main application, which means that you can customize more functions in liberty. Here is the tutorial:
+*   **The rearend is supported**, which is the maximum motivation that I developed this app. The rearend part of rendering a template webpage is separated from the main application, which means that you can customize more functions in liberty. Here is the tutorial:
 
-    与Anki相比，支持了后端。这是我开发这个应用的最大动力。渲染网页的后端部分从主程序分离出来，意味着你可以方便地个性化更多功能。教程如下：
+    支持后端。这是我开发这个应用的最大动力。渲染模板网页的后端部分从主程序分离出来，意味着你可以方便地个性化更多功能。教程如下：
 
 > 1.  Excel worksheet: You should backup the initial excel file and ensure it only have one worksheet. The row 1 will automatically be skipped, so you can put the corresponding column information in.
 >
@@ -64,7 +66,7 @@ Known problems:
 *   Scroll bars in Management does not work in Windows. Currently, when the information of a card or a word list you add just displays abnormally, you should change the window size of Management.
 
     管理器的滚动条在Windows上失效。当前，当你添加的卡片或者单词表信息显示异常，你需要调整管理器的窗口大小。
-*   There could be something unreasonable in the used memory algorithm SuperMemo2. The selection of feeling strange(quality=0) and vague(quality=2) will return the same next review date (i.e. 1 day later). Currently the solution is that a word with quality=0 should be review today. Also, I have not seen what regulation should be adopted to compute the review priority of the studied words. Currently, I use a policy that GPT recommends: the former the review date, or the smaller the value of the expression `$ easiness^{repetitions}/{interval} $` with the same review date, the urgent the review of the word.
+*   There could be something unreasonable in the used memory algorithm [SuperMemo2](https://pypi.org/project/supermemo2/). The selection of feeling strange(quality=0) and vague(quality=2) will return the same next review date (i.e. 1 day later). Currently the solution is that a word with quality=0 should be review today. Also, I have not seen what regulation should be adopted to compute the review priority of the studied words. Currently, I use a policy that GPT recommends: the former the review date, or the smaller the value of the expression `$ easiness^{repetitions}/{interval} $` with the same review date, the urgent the review of the word.
 
     使用的SuperMemo2算法可能有些不合理的地方。选择感到陌生（quality=0）和模糊（quality=2）得到的下一次复习日期是一致的（即都是一天后）。当前的解决方法是quality=0时，今天之内应当再次复习。此外，我没有看到如何计算学习过的单词的优先级的规则。当前，我使用的是GPT推荐的策略：复习日期越早或者相同日期的情况下表达式`$ easiness^{repetitions}/{interval} $`的值越小，词的复习越紧急。
 *   Not support auto-play sound. It limits by browser policy for saving net flow.
