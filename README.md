@@ -1,5 +1,7 @@
 # Wordgets: A word memory desktop gadget
 
+### Rewriting for being compatible with mobile devices... 为兼容移动端，正重写中
+
 Wordgets是一个单词记忆桌面小工具。
 
 ==**ALERT**: The current version is unstable. DO NOT TAKE IT AS THE FULL OF YOUR DAILY-USED WORD-MEMORY TOOL. This code is for the purpose of learning and communication.==
