@@ -1,106 +1,105 @@
 import toga
 from toga.style import Pack
-from toga.style.pack import COLUMN, ROW, LEFT, CENTER, RIGHT, HIDDEN, VISIBLE
-from typing import Union
-import platform
-import distro
+from toga.style.pack import COLUMN, ROW, LEFT, CENTER, RIGHT, HIDDEN, VISIBLE, NORMAL, BOLD, TRANSPARENT
 import os
-import pyautogui
-import webbrowser
+import platform
+import sys
 import json
-import sqlite3
-from functools import partial
 import re
-from datetime import datetime
 import copy
-import random
-
-# Lib for validating file type
-from openpyxl import load_workbook
+from functools import partial
+import sqlite3
 from bs4 import BeautifulSoup
-
-#Memo 
+from openpyxl import load_workbook
+import requests
 from supermemo2 import SMTwo
+from datetime import datetime
+import random
+from typing import Union
 
-# Globals
-g_strRunPath = os.path.dirname(__file__)
-g_strLangPath = os.path.join(g_strRunPath, "resources/languages.json")
-g_strDBPath = os.path.join(g_strRunPath, "resources/wordgets_stat.db")
-g_strConfigPath = os.path.join(g_strRunPath, "resources/configuration.json")
-g_strWordlistsPath = os.path.join(g_strRunPath, "resources/wordlists.json")
-g_strCardsPath = os.path.join(g_strRunPath, "resources/cards.json")
-g_bIsMobile = True
-g_EmptyHtml = '<!DOCTYPE html> <html> <head> <title> </title> </head> <body> </body> </html>' #Cannot be "". Otherwise, it will not work
+# Global variables
+g_strRunPath        = ""
+g_strLangPath       = ""
+g_strDBPath         = ""
+g_strConfigPath     = ""
+g_strCardsPath      = ""
+g_strWordlistsPath  = ""
+g_dictCards         = {}
+g_dictWordLists     = {}
+g_EmptyHtml         = '<!DOCTYPE html> <html> <head> <title> </title> </head> <body> </body> </html>' #Cannot be "". Otherwise, it will not work
+g_bIsMobile         = False
 
-# Whether the form is opened
-g_bSubFormReleased = True
-g_bSubSubFormReleased = True
+#Config
+g_strDefaultLang        = "English"
+g_strOpenedWordListName = ""
+g_bOnlyReview           = False
 
-g_dictWordLists = {}
-g_dictCards     = {}
+# Color scheme
+g_clrBg                     = "#EEF4F9"
+g_clrPressedNavigationBtn   = "#E6EBF0"
+g_clrStrange                = "#CFBAF0"
+g_clrVague                  = "#FDE4CF"
+g_clrFamiliar               = "#B9FBC0"
+g_clrDelete                 = "#8EECF5"
+g_clrOpenedTabText          = "#1651AA"
 
-# Dialog 
-g_strMsgBox_OpenFileDialogTitle = ""
-g_strMsgBox_ErrorDialogTitle = ""
-g_strMsgBox_ErrorDialogMsg_InvalidFile = ""
-g_strMsgBox_InfoDialogTitle = ""
-g_strMsgBox_InfoDialogMsg_EmptyCardName = ""
-g_strMsgBox_InfoDialogMsg_RepetitiveCardName = ""
-g_strMsgBox_InfoDialogMsg_EmptyWordListName = ""
-g_strMsgBox_InfoDialogMsg_RepetitiveWordListName = ""
-g_strMsgBox_ErrorDialogMsg_CannotCreateCard = ""
-g_strMsgBox_ErrorDialogMsg_CannotCreateWordlist = ""
-g_strMsgBox_ErrorDialogMsg_CardHasAssociatedWordlist = ""
-g_strMsgBox_ErrorDialogMsg_Card1IsNull = ""
-g_strMsgBox_QuestionDialogTitle_Warning = ""
-g_strMsgBox_QuestionDialogMsg_WarningOnDeletingWordList = ""
-g_strMsgBox_QuestionDialogMsg_NotFoundWordList = ""
-g_strMsgBox_ErrorDialogMsg_NoWordList = ""
-g_strMsgBox_ErrorDialogMsg_Card1SameAsCard2 = ""
-g_strMsgBox_InfoDialogMsg_Completed = ""
-g_strMsgBox_QuestionDialogMsg_DeleteThisWord= ""
-g_strMsgBox_InfoDialogMsg_ContinueToStudyNewWords = ""
-g_strMsgBox_InfoDialogMsg_MissionComplete = ""
-g_strMsgBox_ErrorDialogMsg_InvalidFiles = ""
 
 # Keywords for text display
-g_strFront = ""
-g_strBack = ""
-g_strOnesided = ""
-g_strFrontend =""
-g_strBackend =""
-g_strFilePath = ""
-g_strCard1 = ""
-g_strCard2 = ""
+g_strFront      = ""
+g_strBack       = ""
+g_strOnesided   = ""
+g_strFrontend   = ""
+g_strBackend    = ""
+g_strFilePath   = ""
+g_strCard1      = ""
+g_strCard2      = ""
 
-#Window widgets
-g_strLblNewWordsPerGroup = ""
-g_strLblOldWordsPerGroup = ""
-g_strLblReviewPolicy = ""
-g_strCboReviewPolicy_item_LearnFirst = ""
-g_strCboReviewPolicy_item_Random = ""
-g_strCboReviewPolicy_item_ReviewFirst = ""
+# Widgets texts
+g_strLblNewWordsPerGroup                = ""
+g_strLblOldWordsPerGroup                = ""
+g_strLblReviewPolicy                    = ""
+g_strCboReviewPolicy_item_LearnFirst    = ""
+g_strCboReviewPolicy_item_Random        = ""
+g_strCboReviewPolicy_item_ReviewFirst   = ""
 
-# Config
-g_strDefaultLang = "English"
-g_strOpenedWordListName = ""
-g_bOnlyReview = False
+# Messagebox
+g_strErrorDialogTitle                       = ""
+g_strErrorDialogMsg_EmptyName               = ""
+g_strErrorDialogMsg_RepetitiveName          = ""
+g_strErrorDialogMsg_InvalidFileName         = ""
+g_strErrorDialogMsg_AssociatedWordList      = ""
+g_strQuestionDialogTitle                    = ""
+g_strQuestionDialogMsg_Delete               = ""
+g_strErrorDialogMsg_InvalidFile             = ""
+g_strErrorDialogMsg_NoWordList              = ""
+g_strErrorDialogMsg_Card1IsNull             = ""
+g_strErrorDialogMsg_Card1SameAsCard2        = ""
+g_strQuestionDialogMsg_NotFoundWordList     = ""
+g_strInfoDialogTitle                        = ""
+g_strInfoDialogMsg_Complete                 = ""
+g_strErrorDialogMsg_DownloadFailed          = ""
+g_strInfoDialogMsg_MissionComplete          = ""
+g_strInfoDialogMsg_ContinueToStudyNewWords  = ""
+g_strQuestionDialogMsg_NoFurtherReview      = ""
 
-# Temporary variables
-g_strTmpNameTxt = ""
-g_iTmpPrevWordNo = -1
-g_iTmpPrevCardType = -1
-g_bSwitchContinueNewWords = True
-g_iTmpCntStudiedNewWords = 0
-g_iTmpCntStudiedOldWords = 0 # It can be over than real total of old words.
+#Temporary global
+g_strTmpNameTxt             = ""
+g_bTmpEditNewCard           = True
+g_bTmpEditNewWordList       = True
+g_iTmpPrevWordNo            = -1
+g_iTmpPrevCardType          = -1
+g_bSwitchContinueNewWords   = True
+g_iTmpCntStudiedNewWords    = 0
+g_iTmpCntStudiedOldWords    = 0 # It can be over than real total of old words.
 
 # Functions
 def GetOS() -> str:
     strOS = platform.system() # If Windows, return Windows
     if strOS == 'Linux':
-        strLinuxDist = distro.linux_distribution() #[!] It is said that possibly there could be another outputs on different Android third-party distributions.
-        if strLinuxDist == 'Android':
-            strOS = strLinuxDist
+        if str(hasattr(sys, 'getandroidapilevel')):
+            strOS = 'Android'
+        else:
+            strOS = 'Linux'
     elif strOS == 'Darwin':
         if platform.mac_ver()[0].startswith('iPhone'):
             strOS = 'iOS'
@@ -138,296 +137,261 @@ class wordgets(toga.App):
         return factory_app(interface=self)
 
     def startup(self):
-        # Main window layout
+        global g_strRunPath, g_strLangPath, g_strDBPath, g_strConfigPath, g_strCardsPath, g_strWordlistsPath
+        g_strRunPath        = self.paths.app.absolute()
+        g_strLangPath       = os.path.join(g_strRunPath, "resources/languages.json")
+        g_strDBPath         = os.path.join(g_strRunPath, "resources/wordgets_stat.db")
+        g_strConfigPath     = os.path.join(g_strRunPath, "resources/configuration.json")
+        g_strCardsPath      = os.path.join(g_strRunPath, "resources/wordlists.json")
+        g_strWordlistsPath  = os.path.join(g_strRunPath, "resources/cards.json")
+
         self.main_window    = toga.MainWindow(title=self.formal_name)
-        #wordgets.on_exit    = self.cb_on_exit             A bug.
-        boxMain_wndMain     = toga.Box(style = Pack(direction = COLUMN))
-        boxRow1_wndMain     = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
-        self.btnOpenWndOpt_wndMain = toga.Button("🔧", on_press = self.cbOpenWndOpt)
-        self.btnOpenWndMgmt_wndMain = toga.Button("📚", on_press = self.cbOpenWndMgmt)
-        self.cboCurWordlist_wndMain = toga.Selection(on_select = self.cbChangeCurWordList)
-        self.chkIsReviewOnly_wndMain = toga.Switch("",on_change=self.cbChangeChkIsReviewOnly)
-        boxRow1_wndMain.add(
-            self.btnOpenWndOpt_wndMain,
-            self.btnOpenWndMgmt_wndMain,
-            self.cboCurWordlist_wndMain,
-            self.chkIsReviewOnly_wndMain
-        )
-
-        boxRow2_wndMain                         = toga.Box(style = Pack(direction = ROW, alignment=CENTER))
-        boxRow2Left_wndMain                     = toga.Box(style = Pack(flex = 5, direction = ROW, alignment = CENTER, padding_top = 5, padding_bottom = 5))
-        self.lblLearningProgressItem_wndMain    = toga.Label("")
-        self.lblLearningProgressValue_wndMain   = toga.Label("", style = Pack(flex = 1))
-        boxRow2Left_wndMain.add(
-            self.lblLearningProgressItem_wndMain,
-            self.lblLearningProgressValue_wndMain
-        )
-
-        self.boxRow2Right_wndMain       = toga.Box(style = Pack(flex = 1, direction = ROW, alignment = CENTER))
-        boxRow2_wndMain.add(
-            boxRow2Left_wndMain,
-            self.boxRow2Right_wndMain
-        )
+        boxMain             = toga.Box(style = Pack(direction = COLUMN, background_color = g_clrBg))
+        boxNavigationBar    = toga.Box(style = Pack(direction = ROW, padding_top = 5, padding_bottom = 5, alignment = CENTER))
         
-        boxRow3_wndMain     = toga.Box(style = Pack(direction = ROW, flex = 1, padding_top = 5, alignment = CENTER))
-        self.wbCard_wndMain = toga.WebView(style = Pack(direction = COLUMN, flex = 1))
-        boxRow3_wndMain.add(
-            self.wbCard_wndMain
-        )
-
-        self.boxRow4_wndMain= toga.Box(style=Pack(direction = ROW, padding_top=5, alignment = CENTER))
+        self.btnIndex_boxNavigateBar       = toga.Button("",style = Pack(flex = 1), on_press = self.cbBtnIndexOnPress)
+        self.btnSettings_boxNavigateBar    = toga.Button("",style = Pack(flex = 1), on_press = self.cbBtnSettingsOnPress)
+        self.btnLibrary_boxNavigateBar     = toga.Button("",style = Pack(flex = 1), on_press = self.cbBtnLibraryOnPress)
         
-        boxMain_wndMain.add(
-            boxRow1_wndMain,
-            boxRow2_wndMain,
-            boxRow3_wndMain,
-            self.boxRow4_wndMain
+        boxNavigationBar.add(
+            self.btnIndex_boxNavigateBar,
+            self.btnLibrary_boxNavigateBar,
+            self.btnSettings_boxNavigateBar
         )
-
-        self.main_window.content = boxMain_wndMain
-
-        # Option window layout
-        self.wndOpt         = toga.Window("", on_close = self.cbCloseWndOpt)
-        self.windows.add(self.wndOpt)
-        sbMain_wndOpt       = toga.ScrollContainer(horizontal= False)
+        self.boxBody             = toga.Box(style = Pack(direction = COLUMN, flex = 1))
         
-        boxChangeLang_wndOpt= toga.Box(style = Pack(direction = ROW, alignment = CENTER))
-        self.lblLang_wndOpt = toga.Label("")
-        lblLangEmoji_wndOpt = toga.Label("🌐")
-        self.cboChangeLang_wndOpt = toga.Selection(on_select=self.cbChangeLanguageForCboOnSelect)
-        boxChangeLang_wndOpt.add(
-            self.lblLang_wndOpt,
-            lblLangEmoji_wndOpt,
-            self.cboChangeLang_wndOpt
-        )
-        
-        boxVisitOfficialWebsite_wndOpt = toga.Box(style = Pack(direction = ROW, padding_top = 5))
-        self.btnVisitOfficialWebsite_wndOpt = toga.Button("", on_press = lambda _widget: webbrowser.open('https://github.com/leaffeather/wordgets'))
-        boxVisitOfficialWebsite_wndOpt.add(self.btnVisitOfficialWebsite_wndOpt)
-        
-        sbMain_wndOpt.content = toga.Box(
-            children = [
-                boxChangeLang_wndOpt,
-                boxVisitOfficialWebsite_wndOpt
-            ], 
-            style = Pack(direction = COLUMN)
-        )
-        self.wndOpt.content   = sbMain_wndOpt
-        
-        # Word list manager
-        self.wndMgmt          = toga.Window("", on_close=self.cbCloseWndMgmt)
-        self.windows.add(self.wndMgmt)
-        
-        boxMain_wndMgmt       = toga.Box(style = Pack(direction = COLUMN))
-        boxCardGroup_wndMgmt       = toga.Box(style = Pack(direction = ROW, flex = 1))
-        boxCardCol1_wndMgmt   = toga.Box(style = Pack(direction = COLUMN, flex = 1))
-        self.lblCard_wndMgmt  = toga.Label("")
-        btnAddCard_wndMgmt    = toga.Button("➕",style = Pack(flex = 1), on_press = self.cbOpenWndAddCard)
-        boxCardCol1_wndMgmt.add(
-            self.lblCard_wndMgmt,
-            btnAddCard_wndMgmt
-        )
-        self.sbCardCol2_wndMgmt   = toga.ScrollContainer(style = Pack(direction = COLUMN, flex = 9)) # A bug. Waiting for toga release   
-        self.boxCards_wndMgmt = toga.Box(style = Pack(direction = COLUMN))
-        self.sbCardCol2_wndMgmt.content = self.boxCards_wndMgmt
-        boxCardGroup_wndMgmt.add(
-            boxCardCol1_wndMgmt,
-            self.sbCardCol2_wndMgmt
+        boxMain.add(
+            boxNavigationBar,
+            self.boxBody
         )
 
-        boxWordListGroup_wndMgmt       = toga.Box(style = Pack(direction = ROW, flex = 1, padding_top = 5)) 
-        boxWordListCol1_wndMgmt   = toga.Box(style = Pack(direction = COLUMN, flex = 1))
-        self.lblWordList_wndMgmt  = toga.Label("")
-        btnAddWordList_wndMgmt    = toga.Button("➕",style = Pack(flex = 1), on_press=self.cbOpenWndAddWordList)
-        boxWordListCol1_wndMgmt.add(
-            self.lblWordList_wndMgmt,
-            btnAddWordList_wndMgmt
+        # Index body
+        self.boxIndexBody = toga.Box(style=Pack(direction = COLUMN, flex = 1))
+        boxIndexBody_Row1 = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
+        self.cboCurWordList_boxIndexBody = toga.Selection(style = Pack(flex = 1))
+        self.chkReviewOnly_boxIndexBody = toga.Switch("", style= Pack(background_color = TRANSPARENT), on_change = self.cbChangeChkReviewOnly)
+        boxIndexBody_Row1.add(
+            self.cboCurWordList_boxIndexBody,
+            self.chkReviewOnly_boxIndexBody
         )
-        self.sbWordListCol2_wndMgmt   = toga.ScrollContainer(style = Pack(direction = COLUMN, flex = 9)) # A bug. Waiting for toga release
-        self.boxWordLists_wndMgmt = toga.Box(style = Pack(direction = COLUMN))
-        self.sbWordListCol2_wndMgmt.content = self.boxWordLists_wndMgmt
-        boxWordListGroup_wndMgmt.add(
-            boxWordListCol1_wndMgmt,
-            self.sbWordListCol2_wndMgmt
+        boxIndexBody_Row2 = toga.Box(style= Pack(direction = ROW))
+        self.lblLearningProgressItem_boxIndexBody = toga.Label("", style = Pack(background_color = TRANSPARENT))
+        self.lblLearningProgressValue_boxIndexBody = toga.Label("", style = Pack(background_color = TRANSPARENT))
+        boxIndexBody_Row2.add(
+            self.lblLearningProgressItem_boxIndexBody,
+            self.lblLearningProgressValue_boxIndexBody
         )
-
-        self.btnApply_wndMgmt = toga.Button("", on_press = self.cbApplyChangesToDB)
-
-        boxMain_wndMgmt.add(
-            boxCardGroup_wndMgmt,
-            boxWordListGroup_wndMgmt,
-            self.btnApply_wndMgmt
+        boxIndexBody_Row3 = toga.Box(style= Pack(direction = ROW, alignment = CENTER))
+        boxIndexBody_Row3Hidden = toga.Box(style=Pack(direction = COLUMN))
+        btnVoidForRemainRow3_boxIndexBody = toga.Button("",style=Pack(visibility = HIDDEN, width = 1))
+        boxIndexBody_Row3Hidden.add(
+            btnVoidForRemainRow3_boxIndexBody
         )
-        
-        self.wndMgmt.content  = boxMain_wndMgmt
-        
-        # Add card window
-        self.wndAddCard = toga.Window("", on_close = self.cbCloseWndAddCard)
-        self.windows.add(self.wndAddCard)
-        sbMain_wndAddCard = toga.ScrollContainer(style = Pack(direction = COLUMN, flex = 1), horizontal = False)
-
-        boxRow0_wndAddCard = toga.Box(style = Pack(direction = COLUMN, flex = 1, padding_top = 5)) #Appended. 
-        self.lblSpecifyNewCardName_wndAddCard = toga.Label("")
-        self.txtSpecifyNewCardName_wndAddCard = toga.TextInput("", on_change = self.cbValidateNameTxt)
-        
-        boxRow0_wndAddCard.add(
-            self.lblSpecifyNewCardName_wndAddCard,
-            self.txtSpecifyNewCardName_wndAddCard
+        self.boxIndexBody_Row3Blank = toga.Box(style=Pack(direction = COLUMN, flex = 1))
+        boxIndexBody_Row3.add(
+            boxIndexBody_Row3Hidden,
+            self.boxIndexBody_Row3Blank
         )
 
-        boxRow1_wndAddCard = toga.Box(style = Pack(direction = COLUMN, flex = 1, padding_top = 5))
-        boxRow1Row1_wndAddCard = toga.Box(style = Pack(direction = ROW))
-        self.lblFrontFrontend_WndAddCard = toga.Label("")
-        boxRow1Row1_wndAddCard.add(
-            self.lblFrontFrontend_WndAddCard
+        self.wbWord_boxIndexBody = toga.WebView(style = Pack(direction = COLUMN, flex = 1))
+
+        boxIndexBody_Row5Border = toga.Box(style=Pack(direction = ROW))
+        boxIndexBody_Row5Hidden = toga.Box(style=Pack(direction = ROW))
+        btnVoidForRemainRow5_boxIndexBody = toga.Button("",style=Pack(visibility = HIDDEN, width = 1)) #If not, the box will not appear
+        boxIndexBody_Row5Hidden.add(
+            btnVoidForRemainRow5_boxIndexBody
+        )
+        self.boxIndexBody_Row5 = toga.Box(style=Pack(direction = ROW, flex = 1))
+        boxIndexBody_Row5Border.add(
+            boxIndexBody_Row5Hidden,
+            self.boxIndexBody_Row5
         )
 
-        boxRow1Row2_wndAddCard = toga.Box(style = Pack(direction = ROW, padding_top = 5))
-        btnAddFrontFrontend_wndAddCard = toga.Button("📂", on_press = self.cbFrontFrontend)
-        self.txtFrontFrontendFilePath_wndAddCard = toga.TextInput(style = Pack(flex = 1), readonly = True)
-        boxRow1Row2_wndAddCard.add(
-            btnAddFrontFrontend_wndAddCard,
-            self.txtFrontFrontendFilePath_wndAddCard
+        self.boxIndexBody.add(
+            boxIndexBody_Row1,
+            boxIndexBody_Row2,
+            boxIndexBody_Row3,
+            self.wbWord_boxIndexBody,
+            boxIndexBody_Row5Border
         )
 
-        boxRow1Row3_wndAddCard = toga.Box(style = Pack(direction = ROW, padding_top = 5))
-        self.lblFrontBackend_WndAddCard = toga.Label("")
-        boxRow1Row3_wndAddCard.add(
-            self.lblFrontBackend_WndAddCard
-        )
-
-        boxRow1Row4_wndAddCard = toga.Box(style = Pack(direction = ROW, padding_top = 5))
-        btnAddFrontBackend_wndAddCard = toga.Button("📂", on_press = self.cbFrontBackend)
-        self.txtFrontBackendFilePath_wndAddCard = toga.TextInput(style = Pack(flex = 1), readonly = True)
-        boxRow1Row4_wndAddCard.add(
-            btnAddFrontBackend_wndAddCard,
-            self.txtFrontBackendFilePath_wndAddCard
-        )
-
-        boxRow1_wndAddCard.add(
-            boxRow1Row1_wndAddCard,
-            boxRow1Row2_wndAddCard,
-            boxRow1Row3_wndAddCard,
-            boxRow1Row4_wndAddCard,
-        )
-        
-        boxRow2_wndAddCard = toga.Box(style = Pack(direction = COLUMN, flex = 1, padding_top = 5))
-        self.chkEnableBack_wndAddCard = toga.Switch("", value = True, on_change = self.cbEnableBack)
-        # There is a bug that if initial value is False, the boxRow3 should be hidden but will still be visible on the condition of visibility = HIDDEN  
-        boxRow2_wndAddCard.add(
-            self.chkEnableBack_wndAddCard
-        )
-        
-        self.boxRow3_wndAddCard = toga.Box(style = Pack(direction = COLUMN, padding_top = 5, flex = 1))
-        boxRow3Row1_wndAddCard = toga.Box(style = Pack(direction = ROW))
-        self.lblBackFrontend_WndAddCard = toga.Label("")
-        boxRow3Row1_wndAddCard.add(
-            self.lblBackFrontend_WndAddCard
-        )
-
-        boxRow3Row2_wndAddCard = toga.Box(style = Pack(direction = ROW, padding_top = 5))
-        btnAddBackFrontend_wndAddCard = toga.Button("📂", on_press = self.cbBackFrontend)
-        self.txtBackFrontendFilePath_wndAddCard = toga.TextInput(style = Pack(flex = 1), readonly = True)
-        boxRow3Row2_wndAddCard.add(
-            btnAddBackFrontend_wndAddCard,
-            self.txtBackFrontendFilePath_wndAddCard
-        )
-
-        boxRow3Row3_wndAddCard = toga.Box(style = Pack(direction = ROW, padding_top = 5))
-        self.lblBackBackend_WndAddCard = toga.Label("")
-        boxRow3Row3_wndAddCard.add(
-            self.lblBackBackend_WndAddCard
-        )
-
-        boxRow3Row4_wndAddCard = toga.Box(style = Pack(direction = ROW, padding_top = 5))
-        btnAddBackBackend_wndAddCard = toga.Button("📂", on_press = self.cbBackBackend)
-        self.txtBackBackendFilePath_wndAddCard = toga.TextInput(style = Pack(flex = 1), readonly = True)
-        boxRow3Row4_wndAddCard.add(
-            btnAddBackBackend_wndAddCard,
-            self.txtBackBackendFilePath_wndAddCard
-        )
-        self.boxRow3_wndAddCard.add(
-            boxRow3Row1_wndAddCard,
-            boxRow3Row2_wndAddCard,
-            boxRow3Row3_wndAddCard,
-            boxRow3Row4_wndAddCard,
-        )
-
-        sbMain_wndAddCard.content = toga.Box(
-            children = [
-                boxRow0_wndAddCard,
-                boxRow1_wndAddCard,
-                boxRow2_wndAddCard,
-                self.boxRow3_wndAddCard
-            ], 
-            style = Pack(direction = COLUMN)
-        )
-        self.btnSaveNewCard_wndAddCard = toga.Button("", style = Pack(flex = 1), on_press = self.cbSaveNewCard)
-
-        self.wndAddCard.content = toga.Box(children = [sbMain_wndAddCard, self.btnSaveNewCard_wndAddCard], style = Pack(direction = COLUMN))
-        
-        # Add word list window
-        self.wndAddWordList  = toga.Window("", on_close = self.cbCloseWndAddWordlist)
-        self.windows.add(self.wndAddWordList)
-        sbMain_wndAddWordList = toga.ScrollContainer(style = Pack(direction = COLUMN, flex = 1), horizontal = False)
-        
-        boxRow1_wndAddWordList = toga.Box(style = Pack(direction = COLUMN, flex = 1, padding_top = 5)) #Appended. 
-        self.lblSpecifyNewWordListName_wndAddWordList = toga.Label("")
-        self.txtSpecifyNewWordListName_wndAddWordList = toga.TextInput("", on_change = self.cbValidateNameTxt)
-        boxRow1_wndAddWordList.add(
-            self.lblSpecifyNewWordListName_wndAddWordList,
-            self.txtSpecifyNewWordListName_wndAddWordList
-        )
-
-        boxRow2_wndAddWordList = toga.Box(style = Pack(direction = COLUMN, flex = 1))
-        self.lblExcelFile_WndAddWordList = toga.Label("")
-        boxRow2_wndAddWordList.add(
-            self.lblExcelFile_WndAddWordList
-        )
-
-        boxRow3_wndAddWordList = toga.Box(style = Pack(direction = ROW, padding_top = 5))
-        btnAddExcel_wndAddCard = toga.Button("📂", on_press = self.cbAddWordList)
-        self.txtExcelFilePath_wndAddCard = toga.TextInput(style = Pack(flex = 1), readonly = True)
-        boxRow3_wndAddWordList.add(
-            btnAddExcel_wndAddCard,
-            self.txtExcelFilePath_wndAddCard
-        )
-
-        sbMain_wndAddWordList.content = toga.Box(
-            children = [
-                boxRow1_wndAddWordList,
-                boxRow2_wndAddWordList,
-                boxRow3_wndAddWordList
-            ], 
-            style = Pack(direction = COLUMN)
-        )
-        self.btnSaveNewWordList_wndAddWordList = toga.Button("", style = Pack(flex = 1), on_press = self.cbSaveNewWordList)
-
-        self.wndAddWordList.content = toga.Box(children = [sbMain_wndAddWordList, self.btnSaveNewWordList_wndAddWordList], style = Pack(direction = COLUMN))
-        
-        # Hidden button
-        self.btnStrange = toga.Button("", style = Pack(flex = 1, background_color = "#FF8989"))
-        self.btnVague   = toga.Button("", style = Pack(flex = 1, background_color = "#FBD85D"))
-        self.btnFamiliar= toga.Button("", style = Pack(flex = 1, background_color = "#D0F5BE"))
-        self.btnDelete  = toga.Button("🗑️", style = Pack(flex = 1, background_color = "#A1C2F1"))
+        # Buttons
+        self.btnStrange = toga.Button("", style = Pack(flex = 1, background_color = g_clrStrange))
+        self.btnVague   = toga.Button("", style = Pack(flex = 1, background_color = g_clrVague))
+        self.btnFamiliar= toga.Button("", style = Pack(flex = 1, background_color = g_clrFamiliar))
+        self.btnDelete  = toga.Button("🗑️", style = Pack(flex = 1, background_color = g_clrDelete))
         self.btnShowBack= toga.Button("", style = Pack(flex = 1))
-        
+
         self.btnShowBack.on_press = self.cbShowBack
         self.btnStrange.on_press = partial(self.cbNextCard, 0)
         self.btnVague.on_press = partial(self.cbNextCard, 2)
         self.btnFamiliar.on_press = partial(self.cbNextCard, 4)
         self.btnDelete.on_press = self.cbNoFurtherReviewThisWord
 
-        global g_bIsMobile
-        if GetOS() in ['Windows','Linux','MacOS']:
-            g_bIsMobile = False
+        # Settngs body
+        self.boxSettingsBody = toga.Box(style = Pack(direction = COLUMN, flex = 1))
+        boxSettingsBody_Row1 = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
 
-        ## Read language file 
+        boxSettingsBody_Row1Col1 = toga.Box(style = Pack(direction = ROW, width = 150))
+        self.lblLang_boxSettingsBody        = toga.Label("", style = Pack(background_color = TRANSPARENT))
+        lblLangEmoji_boxSettingsBody   = toga.Label("🌐", style = Pack(background_color = TRANSPARENT))
+
+        boxSettingsBody_Row1Col1.add(
+            self.lblLang_boxSettingsBody,
+            lblLangEmoji_boxSettingsBody
+        )
+
+        boxSettingsBody_Row1Col2 = toga.Box(style = Pack(direction = ROW))
+        self.cboChangeLang_boxSettingsBody = toga.Selection(style = Pack(width = 300))
+        boxSettingsBody_Row1Col2.add(
+            self.cboChangeLang_boxSettingsBody
+        )
+
+        boxSettingsBody_Row1.add(
+            boxSettingsBody_Row1Col1,
+            boxSettingsBody_Row1Col2
+        )
+        
+        self.boxSettingsBody.add(
+            boxSettingsBody_Row1
+        )
+        
+        # Library body
+        self.boxLibraryBody = toga.Box(style = Pack(direction = COLUMN, flex = 1))
+        boxLibraryBodyRow1 = toga.Box(style = Pack(direction = ROW, flex = 1))
+        boxLibraryBodyRow1Col1 = toga.Box(style = Pack(direction = COLUMN, width = 150))
+        self.lblCards_boxLibraryBody = toga.Label("", style = Pack(background_color = TRANSPARENT))
+        self.btnAddACard_boxLibraryBody = toga.Button("➕", style = Pack(flex = 1), on_press = self.cbAddACardOnPress)
+        boxLibraryBodyRow1Col1.add(
+            self.lblCards_boxLibraryBody,
+            self.btnAddACard_boxLibraryBody
+        )
+        sbLibraryBodyRow1Col2 = toga.ScrollContainer(style = Pack(direction = COLUMN, flex = 1, background_color = TRANSPARENT))
+        self.boxCards_boxLibraryBody = toga.Box(style = Pack(direction = COLUMN))
+        sbLibraryBodyRow1Col2.content = self.boxCards_boxLibraryBody
+        boxLibraryBodyRow1.add(
+            boxLibraryBodyRow1Col1,
+            sbLibraryBodyRow1Col2
+        )
+        
+        boxLibraryBodyRow2 = toga.Box(style = Pack(direction = ROW, flex = 1))
+        boxLibraryBodyRow2Col1 = toga.Box(style = Pack(direction = COLUMN, width = 150))
+        self.lblWordLists_boxLibraryBody = toga.Label("", style = Pack(background_color = TRANSPARENT))
+        self.btnAddAWordList_boxLibraryBody = toga.Button("➕", style = Pack(flex = 1), on_press = self.cbAddAWordListdOnPress)
+        boxLibraryBodyRow2Col1.add(
+            self.lblWordLists_boxLibraryBody,
+            self.btnAddAWordList_boxLibraryBody
+        )
+        sbLibraryBodyRow2Col2 = toga.ScrollContainer(style = Pack(direction = COLUMN, flex = 1, background_color = TRANSPARENT))
+        self.boxWordLists_boxLibraryBody = toga.Box(style = Pack(direction = COLUMN))
+        sbLibraryBodyRow2Col2.content = self.boxWordLists_boxLibraryBody
+        boxLibraryBodyRow2.add(
+            boxLibraryBodyRow2Col1,
+            sbLibraryBodyRow2Col2
+        )
+        self.btnApplyChanges_boxLibraryBody = toga.Button("", on_press = self.cbApplyChangesOnPress)
+        self.boxLibraryBody.add(
+            boxLibraryBodyRow1,
+            boxLibraryBodyRow2,
+            self.btnApplyChanges_boxLibraryBody
+        )
+
+        # Body of editing a card   
+        self.boxEditCardBody = toga.Box(style = Pack(direction = COLUMN, flex = 1))
+
+        sbEditCardBodyRow1 = toga.ScrollContainer(style = Pack(direction = COLUMN, flex = 1, background_color = TRANSPARENT), horizontal = False)
+
+        self.lblEditCard_boxEditCardBody = toga.Label("", style = Pack(background_color = TRANSPARENT, flex = 1, font_weight = BOLD))
+        boxEditCardBodyRow1Row2 = toga.Box(style = Pack(direction = COLUMN, flex = 1))
+        self.lblCardName_boxEditCardBody = toga.Label("", style = Pack(background_color = TRANSPARENT, flex = 1))
+        self.txtCardName_boxEditCardBody = toga.TextInput(style = Pack(flex = 1), on_change = self.cbValidateNameTxt)
+        boxEditCardBodyRow1Row2.add(
+            self.lblCardName_boxEditCardBody,
+            self.txtCardName_boxEditCardBody
+        )
+        boxEditCardBodyRow1Row3 = toga.Box(style = Pack(direction = COLUMN,flex = 1))
+        self.lblCardFrontFrontend_boxEditCardBody = toga.Label("", style = Pack(background_color = TRANSPARENT, flex = 1))
+        self.txtCardFrontFrontend_boxEditCardBody = toga.TextInput(style = Pack(flex = 1))
+        self.lblCardFrontBackend_boxEditCardBody = toga.Label("", style = Pack(background_color = TRANSPARENT, flex = 1))
+        self.txtCardFrontBackend_boxEditCardBody = toga.TextInput(style = Pack(flex = 1))
+        boxEditCardBodyRow1Row3.add(
+            self.lblCardFrontFrontend_boxEditCardBody,
+            self.txtCardFrontFrontend_boxEditCardBody,
+            self.lblCardFrontBackend_boxEditCardBody,
+            self.txtCardFrontBackend_boxEditCardBody
+        )
+        self.chkEnableCardBack = toga.Switch("", style = Pack(background_color = TRANSPARENT, flex = 1), value = False, on_change = self.cbEnableCardBackOnChange)
+        self.boxEditCardBodyRow1Row5 = toga.Box(style = Pack(direction = COLUMN, flex = 1))
+        self.lblCardBackFrontend_boxEditCardBody = toga.Label("", style = Pack(background_color = TRANSPARENT, flex = 1))
+        self.txtCardBackFrontend_boxEditCardBody = toga.TextInput(style = Pack(flex = 1))
+        self.lblCardBackBackend_boxEditCardBody = toga.Label("", style = Pack(background_color = TRANSPARENT, flex = 1))
+        self.txtCardBackBackend_boxEditCardBody = toga.TextInput(style = Pack(flex = 1))
+        self.boxEditCardBodyRow1Row5.add(
+            self.lblCardBackFrontend_boxEditCardBody,
+            self.txtCardBackFrontend_boxEditCardBody,
+            self.lblCardBackBackend_boxEditCardBody,
+            self.txtCardBackBackend_boxEditCardBody
+        )
+
+        sbEditCardBodyRow1.content = toga.Box(
+            children=[
+                self.lblEditCard_boxEditCardBody,
+                boxEditCardBodyRow1Row2,
+                boxEditCardBodyRow1Row3,
+                self.chkEnableCardBack,
+                self.boxEditCardBodyRow1Row5
+            ],style = Pack(direction = COLUMN)
+        )
+
+        self.btnSaveCard_boxEditCardBody = toga.Button("", on_press = self.cbSaveCardOnPress)
+        self.boxEditCardBody.add(
+            sbEditCardBodyRow1,
+            self.btnSaveCard_boxEditCardBody
+        )
+        self.boxEditCardBodyRow1Row5.style.update(visibility = HIDDEN)
+
+        # Body of editing a word list
+        self.boxEditWordListBody = toga.Box(style = Pack(direction = COLUMN, flex = 1))
+        sbEditWordListBodyRow1 = toga.ScrollContainer(style = Pack(direction = COLUMN, flex = 1, background_color = TRANSPARENT), horizontal = False)
+        self.lblEditWordlist_boxEditWordListBody = toga.Label("", style = Pack(background_color = TRANSPARENT, flex = 1, font_weight = BOLD))
+        boxEditWordListBodyRow1Row2 = toga.Box(style = Pack(direction = COLUMN, flex = 1))
+        self.lblWordListName_boxEditWordListBody = toga.Label("", style = Pack(background_color = TRANSPARENT, flex = 1))
+        self.txtWordListName_boxEditWordListBody = toga.TextInput(style = Pack(flex = 1), on_change = self.cbValidateNameTxt)
+        boxEditWordListBodyRow1Row2.add(
+            self.lblWordListName_boxEditWordListBody,
+            self.txtWordListName_boxEditWordListBody
+        )
+        boxEditWordListBodyRow1Row3 = toga.Box(style = Pack(direction = COLUMN,flex = 1))
+        self.lblWordListXlsx_boxEditWordListBody = toga.Label("", style = Pack(background_color = TRANSPARENT, flex = 1))
+        self.txtWordListXlsx_boxEditWordListBody = toga.TextInput(style = Pack(flex = 1))
+        
+        boxEditWordListBodyRow1Row3.add(
+            self.lblWordListXlsx_boxEditWordListBody,
+            self.txtWordListXlsx_boxEditWordListBody,
+        )
+
+        sbEditWordListBodyRow1.content = toga.Box(
+            children=[
+                self.lblEditWordlist_boxEditWordListBody,
+                boxEditWordListBodyRow1Row2,
+                boxEditWordListBodyRow1Row3
+            ],style = Pack(direction = COLUMN)
+        )
+
+        self.btnSaveWordList_boxEditWordListBody = toga.Button("", on_press = self.cbSaveWordListOnPress)
+        self.boxEditWordListBody.add(
+            sbEditWordListBodyRow1,
+            self.btnSaveWordList_boxEditWordListBody
+        )
+
+        # Read language file
+        self.m_dictLanguages = {}
         with open(g_strLangPath, "r") as f:
             self.m_dictLanguages = json.load(f)
-        self.cboChangeLang_wndOpt.items = self.m_dictLanguages.keys()
-        
-        global g_strDefaultLang, g_strOpenedWordListName, g_bOnlyReview
+
+        global g_bIsMobile, g_strDefaultLang, g_strOpenedWordListName, g_bOnlyReview
+        if GetOS() in ['Windows','Linux','MacOS']:
+            g_bIsMobile = False
 
         #Read configuration
         (iX, iY) = self.main_window.position
@@ -443,36 +407,47 @@ class wordgets(toga.App):
                     t_iY = dictConfig['Y']
                     t_iWidth = dictConfig['width']
                     t_iHeight = dictConfig['height']
-                    (iResolutionWidth, iResolutionHeight) = pyautogui.size()
-                    if 0 <= t_iX <= t_iX + t_iWidth <= iResolutionWidth and\
-                        0 <= t_iY <= t_iY + t_iHeight <= iResolutionHeight:
+                    #Current lack resolution getter
+                    if 0 <= t_iX <= t_iX + t_iWidth  and\
+                        0 <= t_iY <= t_iY + t_iHeight :
                         iX = t_iX
                         iY = t_iY
                         iWidth = t_iWidth
                         iHeight = t_iHeight
-        self.chkIsReviewOnly_wndMain.value = g_bOnlyReview
+        
+        self.main_window.content = boxMain
         self.main_window.position = (iX, iY)
         self.main_window.size = (iWidth, iHeight)
-
-        ## Change the language. When the content in languge ComboBox is changed, it will jump to the first added language. 
-        self.ChangeLanguageAccordingDefaultLang()
         
-        # Read wordlists and cards
+        #Initialize
+        self.cbBtnIndexOnPress(None)
+        self.main_window.show()
+
+        self.cboChangeLang_boxSettingsBody.items = list(self.m_dictLanguages.keys())
+        self.cboChangeLang_boxSettingsBody.value = g_strDefaultLang
+
+        self.cboChangeLang_boxSettingsBody.on_select = self.cbChangeLangOnSelect
+        self.ChangeLangAccordingToDefaultLang()
+
+        self.chkReviewOnly_boxIndexBody.value = g_bOnlyReview
+        
+        self.main_window.info_dialog("test",g_strWordlistsPath)
         if os.path.exists(g_strWordlistsPath) == True:
             with open(g_strWordlistsPath, "r") as f:
                 global g_dictWordLists
                 g_dictWordLists = json.load(f)
+                self.main_window.info_dialog("test",str(g_dictWordLists))
+        self.main_window.info_dialog("test",g_strCardsPath)
         if os.path.exists(g_strCardsPath) == True:
             with open(g_strCardsPath, "r") as f:
                 global g_dictCards
                 g_dictCards = json.load(f)
+                self.main_window.info_dialog("test",str(g_dictCards))
         
-        self.wbCard_wndMain.set_content("NO_CONTENT", g_EmptyHtml)
+        self.wbWord_boxIndexBody.set_content("NO_CONTENT", g_EmptyHtml)
 
         self.m_lsRememberSeq = []
-        
-        #Show the main window
-        self.main_window.show()
+
         bAllFilesAreValid = self.ValidateFiles()
         if bAllFilesAreValid == True and os.path.exists(g_strDBPath) == True: # Not support displaying an error dialog when no operation on the just executed program. If so, re-config is required.
             
@@ -491,191 +466,151 @@ class wordgets(toga.App):
             if g_strOpenedWordListName not in lsValidWordlists:
                 g_strOpenedWordListName = lsValidWordlists[0]
             
-            self.cboCurWordlist_wndMain.items = lsValidWordlists
-            self.cboCurWordlist_wndMain.value = g_strOpenedWordListName
+            self.cboCurWordList_boxIndexBody.items = lsValidWordlists
+            self.cboCurWordList_boxIndexBody.value = g_strOpenedWordListName
 
+
+            self.cboCurWordList_boxIndexBody.on_select = self.cbChangeCurWordList
+            
             self.GenerateNewWordsSeqOfCurrentWordList()
             self.cbNextCard(-1, None)
         
-      
-    # Callback function  
-    def cbOpenWndOpt(self, widget):
-        global g_bSubFormReleased
-        if g_bSubFormReleased == False and g_bIsMobile == False:
-            return
-        self.cboChangeLang_wndOpt.value = g_strDefaultLang
-        g_bSubFormReleased = False
-        self.wndOpt.show()
 
-    def cbCloseWndOpt(self, widget):
-        global g_bSubFormReleased
-        g_bSubFormReleased = True
+    # Callback functions
+    def cbBtnIndexOnPress(self, widget):
+        while len(self.boxBody.children) != 0:
+            self.boxBody.remove(self.boxBody.children[0])
+        self.btnIndex_boxNavigateBar.style.update(font_weight = BOLD, background_color = g_clrPressedNavigationBtn, color = g_clrOpenedTabText)
+        self.btnSettings_boxNavigateBar.style.update(font_weight = NORMAL, background_color = g_clrBg, color = 'black')
+        self.btnLibrary_boxNavigateBar.style.update(font_weight = NORMAL, background_color = g_clrBg, color = 'black')
+        self.boxBody.add(
+            self.boxIndexBody
+        )
         self.SaveConfiguration()
-        self.wndOpt.hide()
 
-    def cbOpenWndMgmt(self, widget):
-        global g_bSubFormReleased
-        if g_bSubFormReleased == False and g_bIsMobile == False: #On the mobile, on_close will not execute
-            return
-        g_bSubFormReleased = False
+    def cbBtnSettingsOnPress(self, widget):
+        while len(self.boxBody.children) != 0:
+            self.boxBody.remove(self.boxBody.children[0])
+        self.btnIndex_boxNavigateBar.style.update(font_weight = NORMAL, background_color = g_clrBg, color = 'black')
+        self.btnSettings_boxNavigateBar.style.update(font_weight = BOLD, background_color = g_clrPressedNavigationBtn, color = g_clrOpenedTabText)
+        self.btnLibrary_boxNavigateBar.style.update(font_weight = NORMAL, background_color = g_clrBg, color = 'black')
+        self.boxBody.add(
+            self.boxSettingsBody
+        )
+        self.SaveConfiguration()
 
-        #In case of not saving!!!
+    def cbBtnLibraryOnPress(self, widget):
+        while len(self.boxBody.children) != 0:
+            self.boxBody.remove(self.boxBody.children[0])
+        self.btnIndex_boxNavigateBar.style.update(font_weight = NORMAL, background_color = g_clrBg, color = 'black')
+        self.btnSettings_boxNavigateBar.style.update(font_weight = NORMAL, background_color = g_clrBg, color = 'black')
+        self.btnLibrary_boxNavigateBar.style.update(font_weight = BOLD, background_color = g_clrPressedNavigationBtn, color = g_clrOpenedTabText)
+        self.boxBody.add(
+            self.boxLibraryBody
+        )
+        self.SaveConfiguration()
+        
         self.m_dictTmpCards = copy.deepcopy(g_dictCards)
         self.m_dictTmpWordLists = copy.deepcopy(g_dictWordLists)
+        self.FreshCards()
+        self.FreshWordLists()
 
-        self.FreshSbCards()
-        self.FreshSbWordLists()
-        self.wndMgmt.show()
 
-    def cbCloseWndMgmt(self, widget):
-        global g_bSubFormReleased
-        g_bSubFormReleased = True
-        self.wndMgmt.hide()
-
-    def cbChangeLanguageForCboOnSelect(self, widget):
+    def cbChangeLangOnSelect(self, widget):
         global g_strDefaultLang
         g_strDefaultLang = widget.value
-        self.ChangeLanguageAccordingDefaultLang()
-    
-    def cbChangeWordListEveryNCards(self, widget):
-        global g_iChangeWordListEveryNCards
-        g_iChangeWordListEveryNCards = widget.value
-    
-    def cbLearnBackEveryNWords(self, widget):
-        global g_iLearnBackEveryNWords
-        g_iLearnBackEveryNWords = widget.value
-    
-    def cbGetFilePath(self, strFilePath, widget):
-        return strFilePath
-
-    def cbAddWordList(self, widget):
-        lsFilePaths = []
-        self.wndMgmt.open_file_dialog(title = g_strMsgBox_OpenFileDialogTitle, file_types = ["xlsx"],multiselect = False, \
-                                      on_result = lambda _wnd, _pathFilePath: lsFilePaths.append(_pathFilePath))
-        if lsFilePaths[0] == None:
-            return
-        strFilePath = lsFilePaths[0].absolute() #Pathlic.WindowsPath object
-        try:
-            xlsx = load_workbook(strFilePath, read_only = True)
-            sheet = xlsx.worksheets[0]
-            xlsx.close()
-            self.txtExcelFilePath_wndAddCard.value = strFilePath
-        except Exception:
-            self.wndMgmt.error_dialog(title = g_strMsgBox_ErrorDialogTitle, message = g_strMsgBox_ErrorDialogMsg_InvalidFile)
+        self.ChangeLangAccordingToDefaultLang()
         
-    def cbOpenWndAddCard(self, widget):
-        global g_bSubSubFormReleased
-        if g_bSubSubFormReleased == False and g_bIsMobile == False:
-            return
-        g_bSubSubFormReleased = False
-        self.wndAddCard.show()
-
-    def cbCloseWndAddCard(self, widget):
-        global g_bSubSubFormReleased
-        g_bSubSubFormReleased = True
-        self.txtFrontFrontendFilePath_wndAddCard.value = ""
-        self.txtFrontBackendFilePath_wndAddCard.value = ""
-        self.txtBackFrontendFilePath_wndAddCard.value = ""
-        self.txtBackBackendFilePath_wndAddCard.value = ""
-        self.txtSpecifyNewCardName_wndAddCard.value = ""
-        self.wndAddCard.hide()
-
-    def cbEnableBack(self, widget):
-        if widget.value == True:
-            self.boxRow3_wndAddCard.style.update(visibility = VISIBLE)
-        else:
-            self.boxRow3_wndAddCard.style.update(visibility = HIDDEN)
-
-    def cbFrontFrontend(self, widget):
-        lsFilePaths = []
-        self.wndMgmt.open_file_dialog(title = g_strMsgBox_OpenFileDialogTitle, file_types = ["htm", "html"],multiselect = False, \
-                                      on_result = lambda _wnd, _pathFilePath: lsFilePaths.append(_pathFilePath))
-        if lsFilePaths[0] == None:
-            return
-        strFilePath = lsFilePaths[0].absolute() #Pathlic.WindowsPath object
-        try:
-            with open(strFilePath, 'r') as f:
-                soup = BeautifulSoup(f.read(), 'html.parser')
-            self.txtFrontFrontendFilePath_wndAddCard.value = strFilePath
-        except Exception:
-            self.wndMgmt.error_dialog(title = g_strMsgBox_ErrorDialogTitle, message = g_strMsgBox_ErrorDialogMsg_InvalidFile)
-    
-    def cbFrontBackend(self, widget):
-        lsFilePaths = []
-        self.wndMgmt.open_file_dialog(title = g_strMsgBox_OpenFileDialogTitle, file_types = ["py"],multiselect = False, \
-                                      on_result = lambda _wnd, _pathFilePath: lsFilePaths.append(_pathFilePath))
-        if lsFilePaths[0] == None:
-            return
-        strFilePath = lsFilePaths[0].absolute() #Pathlic.WindowsPath object
-        try:
-            with open(strFilePath, 'r') as f:
-                strCode = f.read()
-                compile(strCode, strFilePath, 'exec')
-            self.txtFrontBackendFilePath_wndAddCard.value = strFilePath
-        except Exception:
-            self.wndMgmt.error_dialog(title = g_strMsgBox_ErrorDialogTitle, message = g_strMsgBox_ErrorDialogMsg_InvalidFile)
-            
-    def cbBackFrontend(self, widget):
-        lsFilePaths = []
-        self.wndMgmt.open_file_dialog(title = g_strMsgBox_OpenFileDialogTitle, file_types = ["htm", "html"],multiselect = False, \
-                                      on_result = lambda _wnd, _pathFilePath: lsFilePaths.append(_pathFilePath))
-        if lsFilePaths[0] == None:
-            return
-        strFilePath = lsFilePaths[0].absolute() #Pathlic.WindowsPath object
-        try:
-            with open(strFilePath, 'r') as f:
-                soup = BeautifulSoup(f.read(), 'html.parser')
-            self.txtBackFrontendFilePath_wndAddCard.value = strFilePath
-        except Exception:
-            self.wndMgmt.error_dialog(title = g_strMsgBox_ErrorDialogTitle, message = g_strMsgBox_ErrorDialogMsg_InvalidFile)
-    
-    def cbBackBackend(self, widget):
-        lsFilePaths = []
-        self.wndMgmt.open_file_dialog(title = g_strMsgBox_OpenFileDialogTitle, file_types = ["py"],multiselect = False, \
-                                      on_result = lambda _wnd, _pathFilePath: lsFilePaths.append(_pathFilePath))
-        if lsFilePaths[0] == None:
-            return
-        strFilePath = lsFilePaths[0].absolute() #Pathlic.WindowsPath object
-        try:
-            with open(strFilePath, 'r') as f:
-                strCode = f.read()
-                compile(strCode, strFilePath, 'exec')
-            self.txtBackBackendFilePath_wndAddCard.value = strFilePath
-        except Exception:
-            self.wndMgmt.error_dialog(title = g_strMsgBox_ErrorDialogTitle, message = g_strMsgBox_ErrorDialogMsg_InvalidFile)
-    
     def cbValidateNameTxt(self, widget):
         global g_strTmpNameTxt
         if widget.value == "":
             g_strTmpNameTxt = ""
+            return
         if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", widget.value):
             widget.value = g_strTmpNameTxt
-            #matches = re.findall(r"[a-zA-Z]+", widget.value)
-            #widget.value = ''.join(matches)
         if len(widget.value) > 10:
             widget.value = g_strTmpNameTxt
         g_strTmpNameTxt = widget.value
+        
     
-    def cbSaveNewCard(self, widget):
-        strCardCname = self.txtSpecifyNewCardName_wndAddCard.value
+    def cbAddACardOnPress(self, widget):
+        while len(self.boxBody.children) != 0:
+            self.boxBody.remove(self.boxBody.children[0])
+        self.boxBody.add(self.boxEditCardBody)
+        while len(self.boxBody.children) != 0: # A BUG: It must be execute twice at the first time, or the scrollcontainer opened at the first time could be incomplete
+            self.boxBody.remove(self.boxBody.children[0])
+        self.boxBody.add(self.boxEditCardBody)
+        self.txtCardName_boxEditCardBody.value = ""
+        self.txtCardFrontFrontend_boxEditCardBody.value = ""
+        self.txtCardFrontBackend_boxEditCardBody.value = ""
+        self.txtCardBackFrontend_boxEditCardBody.value = ""
+        self.txtCardBackBackend_boxEditCardBody.value = ""
+        global g_bTmpEditNewCard
+        g_bTmpEditNewCard = True
+        self.txtCardName_boxEditCardBody.readonly = False
+    
+    def cbAddAWordListdOnPress(self, widget):
+        while len(self.boxBody.children) != 0:
+            self.boxBody.remove(self.boxBody.children[0])
+        self.boxBody.add(self.boxEditWordListBody)
+        while len(self.boxBody.children) != 0: # A BUG: It must be execute twice at the first time, or the scrollcontainer opened at the first time could be incomplete
+            self.boxBody.remove(self.boxBody.children[0])
+        self.boxBody.add(self.boxEditWordListBody)
+        
+        self.txtWordListName_boxEditWordListBody.value = ""
+        self.txtWordListXlsx_boxEditWordListBody.value = ""
+        global g_bTmpEditNewWordList
+        g_bTmpEditNewWordList = True
+        self.txtWordListName_boxEditWordListBody.readonly = False
+
+    def cbSaveCardOnPress(self, widget):
+        strCardCname = self.txtCardName_boxEditCardBody.value
         if strCardCname == "":
-            self.wndAddCard.info_dialog(title = g_strMsgBox_InfoDialogTitle, message = g_strMsgBox_InfoDialogMsg_EmptyCardName)
+            self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_EmptyName)
             return
-        if strCardCname in self.m_dictTmpCards:
-            self.wndAddCard.info_dialog(title = g_strMsgBox_InfoDialogTitle, message = g_strMsgBox_InfoDialogMsg_RepetitiveCardName)
+        if strCardCname in self.m_dictTmpCards and g_bTmpEditNewCard == True:
+            self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_RepetitiveName)
             return
         
-        strFrontFrontendFilePath = self.txtFrontFrontendFilePath_wndAddCard.value
-        strFrontBackendFilePath = self.txtFrontBackendFilePath_wndAddCard.value
-        strBackFrontendFilePath = self.txtBackFrontendFilePath_wndAddCard.value
-        strBackBackendFilePath = self.txtBackBackendFilePath_wndAddCard.value
-        bEnableBack = self.chkEnableBack_wndAddCard.value
+        strFrontFrontendFilePath = self.txtCardFrontFrontend_boxEditCardBody.value
+        strFrontBackendFilePath = self.txtCardFrontBackend_boxEditCardBody.value
+        strBackFrontendFilePath = self.txtCardBackFrontend_boxEditCardBody.value
+        strBackBackendFilePath = self.txtCardBackBackend_boxEditCardBody.value
 
+        bEnableBack = self.chkEnableCardBack.value
         if bEnableBack == False:
             if strFrontFrontendFilePath == "" or strFrontBackendFilePath == "":
-                self.wndAddCard.error_dialog(title = g_strMsgBox_ErrorDialogTitle, message = g_strMsgBox_ErrorDialogMsg_CannotCreateCard)
+                self.main_window.error_dialog(title = g_strErrorDialogTitle, message = g_strErrorDialogMsg_InvalidFileName)
                 return
             else:
+                if strFrontFrontendFilePath[:4] == "http":
+                    try:
+                        response = requests.get(strFrontFrontendFilePath, stream = True)
+                        filename = strCardCname+"-front.html"
+                        strFileWriteTo = os.path.join(g_strRunPath, "download/"+filename)
+                        with open(strFileWriteTo, "wb") as f:
+                            for chunk in response.iter_content(chunk_size = 1024*1024):
+                                if chunk:
+                                    f.write(chunk)
+                        strFrontFrontendFilePath = strFileWriteTo
+                    except Exception:
+                        self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_DownloadFailed)
+                        return
+                    
+                if strFrontBackendFilePath[:4] == "http":
+                    try:
+                        response = requests.get(strFrontBackendFilePath, stream = True)
+                        filename = strCardCname+"-front.py"
+                        strFileWriteTo = os.path.join(g_strRunPath, "download/"+filename)
+                        with open(strFileWriteTo, "wb") as f:
+                            for chunk in response.iter_content(chunk_size = 1024*1024):
+                                if chunk:
+                                    f.write(chunk)
+                        strFrontBackendFilePath = strFileWriteTo
+                    except Exception:
+                        self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_DownloadFailed)
+                        return
+                    
                 self.m_dictTmpCards[strCardCname] = {
                     "single-sided": {
                         "frontend": strFrontFrontendFilePath,
@@ -684,9 +619,64 @@ class wordgets(toga.App):
                 }
         else:
             if strFrontFrontendFilePath == "" or strFrontBackendFilePath == "" or strBackFrontendFilePath == "" or strBackBackendFilePath == "":
-                self.wndAddCard.error_dialog(title = g_strMsgBox_ErrorDialogTitle, message = g_strMsgBox_ErrorDialogMsg_CannotCreateCard)
+                self.main_window.error_dialog(title = g_strErrorDialogTitle, message = g_strErrorDialogMsg_InvalidFileName)
                 return
             else:
+                if strFrontFrontendFilePath[:4] == "http":
+                    try:
+                        response = requests.get(strFrontFrontendFilePath, stream = True)
+                        filename = strCardCname+"-front.html"
+                        strFileWriteTo = os.path.join(g_strRunPath, "download/"+filename)
+                        with open(strFileWriteTo, "wb") as f:
+                            for chunk in response.iter_content(chunk_size = 1024*1024):
+                                if chunk:
+                                    f.write(chunk)
+                        strFrontFrontendFilePath = strFileWriteTo
+                    except Exception:
+                        self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_DownloadFailed)
+                        return
+                    
+                if strFrontBackendFilePath[:4] == "http":
+                    try:
+                        response = requests.get(strFrontBackendFilePath, stream = True)
+                        filename = strCardCname+"-front.py"
+                        strFileWriteTo = os.path.join(g_strRunPath, "download/"+filename)
+                        with open(strFileWriteTo, "wb") as f:
+                            for chunk in response.iter_content(chunk_size = 1024*1024):
+                                if chunk:
+                                    f.write(chunk)
+                        strFrontBackendFilePath = strFileWriteTo
+                    except Exception:
+                        self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_DownloadFailed)
+                        return
+                if strBackFrontendFilePath[:4] == "http":
+                    try:
+                        response = requests.get(strBackFrontendFilePath, stream = True)
+                        filename = strCardCname+"-back.html"
+                        strFileWriteTo = os.path.join(g_strRunPath, "download/"+filename)
+                        with open(strFileWriteTo, "wb") as f:
+                            for chunk in response.iter_content(chunk_size = 1024*1024):
+                                if chunk:
+                                    f.write(chunk)
+                        strBackFrontendFilePath = strFileWriteTo
+                    except Exception:
+                        self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_DownloadFailed)
+                        return
+                    
+                if strBackBackendFilePath[:4] == "http":
+                    try:
+                        response = requests.get(strBackBackendFilePath, stream = True)
+                        filename = strCardCname+"-back.py"
+                        strFileWriteTo = os.path.join(g_strRunPath, "download/"+filename)
+                        with open(strFileWriteTo, "wb") as f:
+                            for chunk in response.iter_content(chunk_size = 1024*1024):
+                                if chunk:
+                                    f.write(chunk)
+                        strBackBackendFilePath = strFileWriteTo
+                    except Exception:
+                        self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_DownloadFailed)
+                        return
+
                 self.m_dictTmpCards[strCardCname] = {
                     "front": {
                         "frontend": strFrontFrontendFilePath,
@@ -697,38 +687,35 @@ class wordgets(toga.App):
                         "backend": strBackBackendFilePath
                     }
                 }
-        self.cbCloseWndAddCard(None)
-        self.FreshSbCards()
-        self.FreshSbWordLists()
-            
+        self.BackToLibraryAndFresh()
 
-    def cbOpenWndAddWordList(self, widget):
-        global g_bSubSubFormReleased
-        if g_bSubSubFormReleased == False and g_bIsMobile == False:
-            return
-        g_bSubSubFormReleased = False
-        self.wndAddWordList.show()
-
-    def cbCloseWndAddWordlist(self, widget):
-        global g_bSubSubFormReleased
-        g_bSubSubFormReleased = True
-        self.txtSpecifyNewWordListName_wndAddWordList.value =""
-        self.txtExcelFilePath_wndAddCard.value = ""
-        self.wndAddWordList.hide()
-
-    def cbSaveNewWordList(self, widget):
-        strWordListCname = self.txtSpecifyNewWordListName_wndAddWordList.value
+    def cbSaveWordListOnPress(self, widget):
+        strWordListCname = self.txtWordListName_boxEditWordListBody.value
         if strWordListCname == "":
-            self.wndAddWordList.info_dialog(title = g_strMsgBox_InfoDialogTitle, message = g_strMsgBox_InfoDialogMsg_EmptyWordListName)
+            self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_EmptyName)
             return
-        if strWordListCname in self.m_dictTmpWordLists:
-            self.wndAddWordList.info_dialog(title = g_strMsgBox_InfoDialogTitle, message = g_strMsgBox_InfoDialogMsg_RepetitiveWordListName)
-            return
-        strExcelFilePath = self.txtExcelFilePath_wndAddCard.value
+        if strWordListCname in self.m_dictTmpWordLists and g_bTmpEditNewWordList == True:
+            self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_RepetitiveName)
+            return 
+        strExcelFilePath = self.txtWordListXlsx_boxEditWordListBody.value
+
         if strExcelFilePath == "":
-            self.wndAddWordList.error_dialog(title = g_strMsgBox_ErrorDialogTitle, message = g_strMsgBox_ErrorDialogMsg_CannotCreateWordlist)
+            self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_InvalidFileName)
             return
         else:
+            if strExcelFilePath[:4] == "http":
+                    try:
+                        response = requests.get(strExcelFilePath, stream = True)
+                        filename = strWordListCname+".xlsx"
+                        strFileWriteTo = os.path.join(g_strRunPath, "download/"+filename)
+                        with open(strFileWriteTo, "wb") as f:
+                            for chunk in response.iter_content(chunk_size = 1024*1024):
+                                if chunk:
+                                    f.write(chunk)
+                        strExcelFilePath = strFileWriteTo
+                    except Exception:
+                        self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_DownloadFailed)
+                        return
             self.m_dictTmpWordLists[strWordListCname] = {
                 "FilePath": strExcelFilePath,
                 "CardType1": "",
@@ -737,10 +724,15 @@ class wordgets(toga.App):
                 "OldWordsPerGroup": 20,
                 "policy": 0
             }
-        self.cbCloseWndAddWordlist(None)
-        self.FreshSbCards()
-        self.FreshSbWordLists()
-    
+        
+        self.BackToLibraryAndFresh()
+        
+    def cbEnableCardBackOnChange(self, widget):
+        if widget.value == True:
+            self.boxEditCardBodyRow1Row5.style.update(visibility = VISIBLE)
+        else:
+            self.boxEditCardBodyRow1Row5.style.update(visibility = HIDDEN)
+
     def cbDeleteCard(self, strCardName, widget):
         setAllUsedCardNames = set()
         for eachWordList in self.m_dictTmpWordLists:
@@ -751,45 +743,79 @@ class wordgets(toga.App):
             if strWordListCardType2 != "":
                 setAllUsedCardNames.add(strWordListCardType2) 
         if strCardName in setAllUsedCardNames:
-            self.wndMgmt.error_dialog(title = g_strMsgBox_ErrorDialogTitle, message = g_strMsgBox_ErrorDialogMsg_CardHasAssociatedWordlist)
+            self.main_window.error_dialog(title = g_strErrorDialogTitle, message = g_strErrorDialogMsg_AssociatedWordList)
             return
         self.m_dictTmpCards.pop(strCardName)
-        self.FreshSbCards()
-        self.FreshSbWordLists()
+        self.FreshCards()
+        self.FreshWordLists()
 
-    def cbDeleteWordList(self, strWordListName, widget):
-        # If a word list is deleted, the record will be removed.
-        lsQuestionDialogResult = []
-        self.wndMgmt.question_dialog(title = g_strMsgBox_QuestionDialogTitle_Warning, message = g_strMsgBox_QuestionDialogMsg_WarningOnDeletingWordList,\
-                                     on_result = lambda _wnd, _bQuestionResult: lsQuestionDialogResult.append(_bQuestionResult))
-        if lsQuestionDialogResult[0] == None or lsQuestionDialogResult[0] == False:
+    def cbEditExistedCard(self, strCardName, widget):
+        self.txtCardName_boxEditCardBody.readonly = True
+        self.txtCardName_boxEditCardBody.value = strCardName
+        if len(self.m_dictTmpCards[strCardName]) == 1:
+            self.txtCardFrontFrontend_boxEditCardBody.value = self.m_dictTmpCards[strCardName]['single-sided']['frontend']
+            self.txtCardFrontBackend_boxEditCardBody.value = self.m_dictTmpCards[strCardName]['single-sided']['backend']
+            self.chkEnableCardBack.value = False
+            self.txtCardBackFrontend_boxEditCardBody.value = ""
+            self.txtCardBackBackend_boxEditCardBody.value = ""
+        else:
+            self.txtCardFrontFrontend_boxEditCardBody.value = self.m_dictTmpCards[strCardName]['front']['frontend']
+            self.txtCardFrontBackend_boxEditCardBody.value = self.m_dictTmpCards[strCardName]['front']['backend']
+            self.chkEnableCardBack.value = True
+            self.txtCardBackFrontend_boxEditCardBody.value = self.m_dictTmpCards[strCardName]['back']['frontend']
+            self.txtCardBackBackend_boxEditCardBody.value = self.m_dictTmpCards[strCardName]['back']['backend']
+        global g_bTmpEditNewCard
+        g_bTmpEditNewCard = False
+        while len(self.boxBody.children) != 0:
+            self.boxBody.remove(self.boxBody.children[0])
+        self.boxBody.add(self.boxEditCardBody)
+
+    async def cbDeleteWordList(self, widget):
+        if await self.main_window.question_dialog(title = g_strQuestionDialogTitle, message = g_strQuestionDialogMsg_Delete):
+            self.m_dictTmpWordLists.pop(widget.id)  # An unreasonable solution
+            self.FreshCards()
+            self.FreshWordLists()
+        else:
             return
-        
-        self.m_dictTmpWordLists.pop(strWordListName)
-        self.FreshSbCards()
-        self.FreshSbWordLists()
+    
+    def cbChangeReviewPolicy(self, strWordList, widget):
+        self.m_dictTmpWordLists[strWordList]['policy'] = widget.items.index(widget.value)
+
+    def cbChangeNewWordsPerGroup(self, strWordList, widget):
+        try:
+            self.m_dictTmpWordLists[strWordList]['NewWordsPerGroup'] = int(widget.value)
+        except Exception:
+            self.m_dictTmpWordLists[strWordList]['NewWordsPerGroup'] = 1
+
+    def cbChangeOldWordsPerGroup(self, strWordList, widget):
+        try:
+            self.m_dictTmpWordLists[strWordList]['OldWordsPerGroup'] = int(widget.value)
+        except Exception:
+            self.m_dictTmpWordLists[strWordList]['OldWordsPerGroup'] = 1
     
     def cbChangeWordListCardType(self, strWordList, iDeleteCardType, widget):
         if iDeleteCardType == 1:
-            self.m_dictTmpWordLists[strWordList]['CardType1'] = widget.value
+            if widget.value == None:
+                self.m_dictTmpWordLists[strWordList]['CardType1'] = ""
+            else:
+                self.m_dictTmpWordLists[strWordList]['CardType1'] = widget.value
         elif iDeleteCardType == 2:
-            self.m_dictTmpWordLists[strWordList]['CardType2'] = widget.value
+            if widget.value == None:
+                self.m_dictTmpWordLists[strWordList]['CardType2'] = ""
+            else:
+                self.m_dictTmpWordLists[strWordList]['CardType2'] = widget.value
 
-    def cbChangeNewWordsPerGroup(self, strWordList, widget):
-        self.m_dictTmpWordLists[strWordList]['NewWordsPerGroup'] = int(widget.value)
-
-    def cbChangeOldWordsPerGroup(self, strWordList, widget):
-        self.m_dictTmpWordLists[strWordList]['OldWordsPerGroup'] = int(widget.value)
+    def cbEditExistedWordList(self, strWordListName, widget):
+        self.txtWordListName_boxEditWordListBody.readonly = True
+        self.txtWordListName_boxEditWordListBody.value = strWordListName
+        self.txtWordListXlsx_boxEditWordListBody.value = self.m_dictTmpWordLists[strWordListName]['FilePath']
+        global g_bTmpEditNewWordList
+        g_bTmpEditNewWordList = False
+        while len(self.boxBody.children) != 0:
+            self.boxBody.remove(self.boxBody.children[0])
+        self.boxBody.add(self.boxEditWordListBody)
     
-    '''
-    def cbChangeReviewPolicy(self, strWordList, widget):
-        self.m_dictTmpWordLists[strWordList]['policy'] = widget.value.val
-    '''
-    def cbChangeReviewPolicy(self, strWordList, widget):
-        self.m_dictTmpWordLists[strWordList]['policy'] = widget.items.index(widget.value)
-        self.SaveConfiguration()
-
-    def cbApplyChangesToDB(self, widget):
+    async def cbApplyChangesOnPress(self, widget):
         try:
             # Validate cards
             for eachCard in self.m_dictTmpCards:
@@ -826,24 +852,22 @@ class wordgets(toga.App):
                 sheet = xlsx.worksheets[0]
                 xlsx.close()
         except Exception:
-            self.wndMgmt.error_dialog(title = g_strMsgBox_ErrorDialogTitle, message = g_strMsgBox_ErrorDialogMsg_InvalidFiles)
-
-        if g_bSubSubFormReleased == False and g_bIsMobile == False: #If there is a sub-window opening
+            self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_InvalidFile)
             return
         
         # Check if there is no word list
         if len(self.m_dictTmpWordLists) == 0:
-            self.wndMgmt.error_dialog(g_strMsgBox_ErrorDialogTitle, g_strMsgBox_ErrorDialogMsg_NoWordList)
+            self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_NoWordList)
             return
         
         # Check all word list is available
         for eachWordList in self.m_dictTmpWordLists:
             if self.m_dictTmpWordLists[eachWordList]['CardType1'] == "":
-                self.wndMgmt.error_dialog(g_strMsgBox_ErrorDialogTitle, g_strMsgBox_ErrorDialogMsg_Card1IsNull)
+                self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_Card1IsNull)
                 return
             else:
                 if self.m_dictTmpWordLists[eachWordList]['CardType2'] == self.m_dictTmpWordLists[eachWordList]['CardType1']:
-                    self.wndMgmt.error_dialog(g_strMsgBox_ErrorDialogTitle, g_strMsgBox_ErrorDialogMsg_Card1SameAsCard2)
+                    self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_Card1SameAsCard2)
                     return
         
         conn = sqlite3.connect(g_strDBPath)
@@ -869,13 +893,11 @@ class wordgets(toga.App):
         for eachWordListInDB in lsAllWordListsInDB:
             if eachWordListInDB not in self.m_dictTmpWordLists:
                 # In case of saving the record
-                lsQuestionDialogResult = []
-                self.wndMgmt.question_dialog(title = g_strMsgBox_QuestionDialogTitle_Warning, message = g_strMsgBox_QuestionDialogMsg_NotFoundWordList % eachWordListInDB,\
-                                            on_result = lambda _wnd, _bQuestionResult: lsQuestionDialogResult.append(_bQuestionResult))
-                if lsQuestionDialogResult[0] == None or lsQuestionDialogResult[0] == False:
+                if await self.main_window.question_dialog(g_strQuestionDialogTitle, message = g_strQuestionDialogMsg_NotFoundWordList % eachWordListInDB):
+                    cursor.execute(f"DELETE FROM statistics WHERE wordlist='{eachWordListInDB}'")  
+                    lsAllWordListsInDBRemained.remove(eachWordListInDB)
+                else:
                     continue
-                cursor.execute(f"DELETE FROM statistics WHERE wordlist='{eachWordListInDB}'")  
-                lsAllWordListsInDBRemained.remove(eachWordListInDB)
         
         for eachWordList in self.m_dictTmpWordLists:
             xlsx = load_workbook(self.m_dictTmpWordLists[eachWordList]['FilePath'], read_only = True)
@@ -920,10 +942,9 @@ class wordgets(toga.App):
 
         self.m_dictTmpWordLists.clear() #Clear temporary
         self.m_dictTmpCards.clear()
-        
         self.SaveWordListsAndCardsToFiles()
 
-        self.wndMgmt.info_dialog(title = g_strMsgBox_InfoDialogTitle, message = g_strMsgBox_InfoDialogMsg_Completed)
+        self.main_window.info_dialog(title = g_strInfoDialogTitle, message = g_strInfoDialogMsg_Complete)
 
         lsValidWordlists = []
         conn = sqlite3.connect(g_strDBPath)
@@ -940,28 +961,13 @@ class wordgets(toga.App):
         if g_strOpenedWordListName not in lsValidWordlists:
             g_strOpenedWordListName = lsValidWordlists[0]
 
-        self.cboCurWordlist_wndMain.items = lsValidWordlists
-        self.cboCurWordlist_wndMain.value = g_strOpenedWordListName
+        self.cboCurWordList_boxIndexBody.items = lsValidWordlists
+        self.cboCurWordList_boxIndexBody.value = g_strOpenedWordListName
 
         self.GenerateNewWordsSeqOfCurrentWordList()
         self.cbNextCard(-1, None)
 
-        self.cbCloseWndMgmt(None)
-
-    def cbChangeChkIsReviewOnly(self, widget):
-        global g_bOnlyReview
-        g_bOnlyReview = widget.value
-        if g_bOnlyReview == False:
-            self.cbNextCard(-1, None)
-            
-
-    def cbNoFurtherReviewThisWord(self, widget):
-        lsQuestionDialogResult = []
-        self.main_window.question_dialog(title = g_strMsgBox_QuestionDialogTitle_Warning, message = g_strMsgBox_QuestionDialogMsg_DeleteThisWord,\
-                                    on_result = lambda _wnd, _bQuestionResult: lsQuestionDialogResult.append(_bQuestionResult))
-        if lsQuestionDialogResult[0] == None or lsQuestionDialogResult[0] == False:
-            return
-        self.cbNextCard(5, None)
+        self.cbBtnIndexOnPress(None)
 
     def cbNextCard(self, iQuality, widget): # iQuality = -1 if there is no need to update record
         self.ChangeWordLearningBtns(0)
@@ -975,9 +981,13 @@ class wordgets(toga.App):
 
         # Write old word record
         if iQuality != -1:
+            if len(self.m_lsRememberSeq) != 0:
+                if self.m_lsRememberSeq[0][0]== g_iTmpPrevWordNo and self.m_lsRememberSeq[0][1] == g_iTmpPrevCardType:
+                    self.m_lsRememberSeq.pop(0)
             cursor.execute('SELECT * FROM statistics WHERE wordlist=? AND word_no=? AND card_type=? AND review_date IS NULL', \
                            (g_strOpenedWordListName, g_iTmpPrevWordNo, g_iTmpPrevCardType))
             result = cursor.fetchall()
+
             if len(result) != 0:
                 #It is a new word
                 review = SMTwo.first_review(iQuality, strToday)
@@ -1027,7 +1037,7 @@ class wordgets(toga.App):
         cursor.execute("SELECT COUNT(*) FROM statistics WHERE wordlist = ? AND review_date <= ?", (g_strOpenedWordListName, strToday))
         iCntDueTimeCards = cursor.fetchone()[0]
 
-        self.lblLearningProgressValue_wndMain.text = str(iCntStudiedCards)+"("+ str(g_iTmpCntStudiedNewWords) + "," + str(g_iTmpCntStudiedOldWords) \
+        self.lblLearningProgressValue_boxIndexBody.text = str(iCntStudiedCards)+"("+ str(g_iTmpCntStudiedNewWords) + "," + str(g_iTmpCntStudiedOldWords) \
             + ")/" +str(iCntRestNewCards) + "/"+str(iCntDueTimeCards)
 
         bFindAnOldWord = False
@@ -1097,19 +1107,19 @@ class wordgets(toga.App):
             result = cursor.fetchone()
             
             if result == None:
-                self.wbCard_wndMain.set_content("NO_CONTENT", g_EmptyHtml)
+                self.wbWord_boxIndexBody.set_content("NO_CONTENT", g_EmptyHtml)
                 conn.commit()
                 conn.close()
                 # If only review is true and rest new cards is not 0,
                 if g_bOnlyReview == True and iCntRestNewCards > 0:
                     if g_iTmpCntStudiedNewWords == 0 and g_iTmpCntStudiedOldWords == 0: # A bug: if the program just runs, the info dialog will raise RuntimeError.
                         return
-                    self.main_window.info_dialog(g_strMsgBox_InfoDialogTitle, g_strMsgBox_InfoDialogMsg_ContinueToStudyNewWords)
+                    self.main_window.info_dialog(g_strInfoDialogTitle, g_strInfoDialogMsg_ContinueToStudyNewWords)
                     return
                 # All old words have been studied.
                 if g_iTmpCntStudiedNewWords == 0 and g_iTmpCntStudiedOldWords == 0: # A bug: if the program just runs, the info dialog will raise RuntimeError.
                     return
-                self.main_window.info_dialog(g_strMsgBox_InfoDialogTitle, g_strMsgBox_InfoDialogMsg_MissionComplete)
+                self.main_window.info_dialog(g_strInfoDialogTitle, g_strInfoDialogMsg_MissionComplete)
                 return
             else:
                 g_iTmpPrevWordNo = result[0]
@@ -1139,18 +1149,17 @@ class wordgets(toga.App):
             if len(self.m_lsRememberSeq) == 0:
                 # All new words have been studied. 
                 
-                self.wbCard_wndMain.set_content("NO_CONTENT", g_EmptyHtml)
+                self.wbWord_boxIndexBody.set_content("NO_CONTENT", g_EmptyHtml)
                 conn.commit()
                 conn.close()
                 if g_iTmpCntStudiedNewWords == 0 and g_iTmpCntStudiedOldWords == 0: # A bug: if the program just runs, the info dialog will raise RuntimeError.
                     return
-                self.main_window.info_dialog(g_strMsgBox_InfoDialogTitle, g_strMsgBox_InfoDialogMsg_MissionComplete)
+                self.main_window.info_dialog(g_strInfoDialogTitle, g_strInfoDialogMsg_MissionComplete)
                 return
             else:
                 g_iTmpPrevWordNo = self.m_lsRememberSeq[0][0]
                 g_iTmpPrevCardType = self.m_lsRememberSeq[0][1]
                 g_iTmpCntStudiedNewWords += 1
-                self.m_lsRememberSeq.pop(0)
             
             review = SMTwo.first_review(0, strToday)
             self.btnStrange.text = "😞 (0 d)"
@@ -1177,13 +1186,12 @@ class wordgets(toga.App):
                 dictCardTypeThisCardUses['single-sided']['backend'],
                 dicDynVariables
             )
-            self.wbCard_wndMain.set_content("wordgets", strRenderedHTML)
+            self.wbWord_boxIndexBody.set_content("wordgets", strRenderedHTML)
 
             #Change button
             self.ChangeWordLearningBtns(2)
         else:
             #Display web
-            
             xlsx = load_workbook(g_dictWordLists[g_strOpenedWordListName]['FilePath'])
             sheet = xlsx.worksheets[0]
             dicDynVariables = {}
@@ -1194,11 +1202,11 @@ class wordgets(toga.App):
                 dictCardTypeThisCardUses['front']['backend'],
                 dicDynVariables
             )
-            self.wbCard_wndMain.set_content("wordgets", strRenderedHTML)
+            self.wbWord_boxIndexBody.set_content("wordgets", strRenderedHTML)
 
             #Change button
             self.ChangeWordLearningBtns(1)
-        
+
     def cbShowBack(self, widget):
         self.ChangeWordLearningBtns(0)
         dictCardTypeThisCardUses = g_dictCards[g_dictWordLists[g_strOpenedWordListName]['CardType'+str(g_iTmpPrevCardType)]]
@@ -1214,62 +1222,269 @@ class wordgets(toga.App):
             dicDynVariables
         )
 
-        self.wbCard_wndMain.set_content("wordgets", strRenderedHTML)
+        self.wbWord_boxIndexBody.set_content("wordgets", strRenderedHTML)
 
         self.ChangeWordLearningBtns(2)
-   
-    def ValidateFiles(self):
-        if len(g_dictCards) == 0 or len(g_dictWordLists) == 0:
-            return False
-        try:
-            # Validate cards
-            for eachCard in g_dictCards:
-                if len(g_dictCards[eachCard]) == 1:
-                    strHtmlPath = g_dictCards[eachCard]['single-sided']['frontend']
-                    with open(strHtmlPath, 'r') as f:
-                        soup = BeautifulSoup(f.read(), 'html.parser')
-                    strPyPath = g_dictCards[eachCard]['single-sided']['backend']
-                    with open(strPyPath, 'r') as f:
-                        strCode = f.read()
-                        compile(strCode, strPyPath, 'exec')
-                else:
 
-                    strFHtmlPath = g_dictCards[eachCard]['front']['frontend']
-                    with open(strFHtmlPath, 'r') as f:
-                        soup = BeautifulSoup(f.read(), 'html.parser')
-                    strFPyPath = g_dictCards[eachCard]['front']['backend']
-                    with open(strFPyPath, 'r') as f:
-                        strCode = f.read()
-                        compile(strCode, strFPyPath, 'exec')
+    def cbChangeCurWordList(self, widget):
+        global g_iTmpPrevWordNo, g_iTmpPrevCardType, g_iTmpCntStudiedNewWords, g_iTmpCntStudiedOldWords, g_strOpenedWordListName
+        if widget.value == g_strOpenedWordListName:
+            return
+        if widget.value == None:
+            g_strOpenedWordListName = ""
+        else:
+            g_strOpenedWordListName = widget.value
+        g_iTmpPrevWordNo = -1
+        g_iTmpPrevCardType = -1
+        g_iTmpCntStudiedNewWords = 0
+        g_iTmpCntStudiedOldWords = 0
+        self.lblLearningProgressValue_boxIndexBody.text = ""
+        self.GenerateNewWordsSeqOfCurrentWordList()
+        self.cbNextCard(-1, None)
+        self.SaveConfiguration()
 
-                    strBHtmlPath = g_dictCards[eachCard]['back']['frontend']
-                    with open(strBHtmlPath, 'r') as f:
-                        soup = BeautifulSoup(f.read(), 'html.parser')
-                    strBPyPath = g_dictCards[eachCard]['back']['backend']
-                    with open(strBPyPath, 'r') as f:
-                        strCode = f.read()
-                        compile(strCode, strBPyPath, 'exec')
+    async def cbNoFurtherReviewThisWord(self, widget):
+        if await self.main_window.question_dialog(title = g_strQuestionDialogTitle, message = g_strQuestionDialogMsg_NoFurtherReview):
+            self.cbNextCard(5, None)
+        else:
+            return
+    
+    def cbChangeChkReviewOnly(self, widget):
+        global g_bOnlyReview
+        g_bOnlyReview = widget.value
+        if g_bOnlyReview == False:
+            self.cbNextCard(-1, None)
 
-            for eachWordlist in g_dictWordLists:  
-                # Validate wordlists
-                strXlsxPath = g_dictWordLists[eachWordlist]['FilePath'] 
-                xlsx = load_workbook(strXlsxPath, read_only = True)
-                sheet = xlsx.worksheets[0]
-                iMaxRowInSheet = sheet.max_row
-                xlsx.close()
+    # Functions
+    def ChangeLangAccordingToDefaultLang(self):
+        self.btnIndex_boxNavigateBar.text                   = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_INDEX_TEXT']
+        self.btnSettings_boxNavigateBar.text                = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_SETTINGS_TEXT']
+        self.btnLibrary_boxNavigateBar.text                 = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_LIBRARY_TEXT']
+        self.lblLang_boxSettingsBody.text                   = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_LANG_TEXT']
+        self.lblCards_boxLibraryBody.text                   = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_CARDS_TEXT']
+        self.lblWordLists_boxLibraryBody.text               = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_WORDLISTS_TEXT']
+        self.btnApplyChanges_boxLibraryBody.text            = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_APPLYCHANGES_TEXT']
+        self.lblEditCard_boxEditCardBody.text               = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_EDITCARD_TEXT']
+        self.lblCardName_boxEditCardBody.text               = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_CARDNAME_TEXT']
+        self.txtCardName_boxEditCardBody.placeholder        = self.m_dictLanguages[g_strDefaultLang]['STR_TXT_PLACEHOLDER_LEGALNAME']
+        self.lblCardFrontFrontend_boxEditCardBody.text      = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_CARDFRONT_FRONTEND_TEXT']
+        self.lblCardFrontBackend_boxEditCardBody.text       = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_CARDFRONT_BACKEND_TEXT']
+        self.lblCardBackFrontend_boxEditCardBody.text       = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_CARDBACK_FRONTEND_TEXT']
+        self.lblCardBackBackend_boxEditCardBody.text        = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_CARDBACK_BACKEND_TEXT']
+        self.chkEnableCardBack.text                         = self.m_dictLanguages[g_strDefaultLang]['STR_CHK_ENABLECARDBACK_TEXT']
+        self.btnSaveCard_boxEditCardBody.text               = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_SAVECARD_TEXT']
+        self.lblEditWordlist_boxEditWordListBody.text       = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_EDITWORDLIST_TEXT']
+        self.lblWordListName_boxEditWordListBody.text       = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_WORDLISTNAME_TEXT']
+        self.txtWordListName_boxEditWordListBody.placeholder= self.m_dictLanguages[g_strDefaultLang]['STR_TXT_PLACEHOLDER_LEGALNAME']
+        self.lblWordListXlsx_boxEditWordListBody.text       = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_WORDLISTXLSX_TEXT']
+        self.btnSaveWordList_boxEditWordListBody.text       = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_SAVEWORDLIST_TEXT']
+        self.lblLearningProgressItem_boxIndexBody.text      = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_LEARNINGPROGRESSITEM_TEXT']
+        self.chkReviewOnly_boxIndexBody.text                = self.m_dictLanguages[g_strDefaultLang]['STR_CHK_REVIEWONLY_TEXT']
+        self.btnShowBack.text                               = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_SHOWBACK_TEXT']
+        global g_strFront, g_strBack, g_strOnesided, g_strFrontend, g_strBackend, g_strFilePath, g_strCard1, g_strCard2
+        g_strFront                                          = self.m_dictLanguages[g_strDefaultLang]['STR_FRONT']
+        g_strBack                                           = self.m_dictLanguages[g_strDefaultLang]['STR_BACK']
+        g_strOnesided                                       = self.m_dictLanguages[g_strDefaultLang]['STR_ONESIDED']
+        g_strFrontend                                       = self.m_dictLanguages[g_strDefaultLang]['STR_FRONTEND']
+        g_strBackend                                        = self.m_dictLanguages[g_strDefaultLang]['STR_BACKEND']
+        g_strFilePath                                       = self.m_dictLanguages[g_strDefaultLang]['STR_FILEPATH']
+        g_strCard1                                          = self.m_dictLanguages[g_strDefaultLang]['STR_CARD_1']
+        g_strCard2                                          = self.m_dictLanguages[g_strDefaultLang]['STR_CARD_2']
+        global g_strErrorDialogTitle, g_strErrorDialogMsg_EmptyName, g_strErrorDialogMsg_InvalidFileName, g_strErrorDialogMsg_RepetitiveName,\
+            g_strErrorDialogMsg_AssociatedWordList, g_strQuestionDialogTitle, g_strQuestionDialogMsg_Delete, g_strErrorDialogMsg_InvalidFile,\
+            g_strErrorDialogMsg_NoWordList, g_strErrorDialogMsg_Card1IsNull, g_strErrorDialogMsg_Card1SameAsCard2,\
+            g_strQuestionDialogMsg_NotFoundWordList, g_strInfoDialogTitle, g_strInfoDialogMsg_Complete, g_strErrorDialogMsg_DownloadFailed,\
+            g_strInfoDialogMsg_MissionComplete, g_strInfoDialogMsg_ContinueToStudyNewWords, g_strQuestionDialogMsg_NoFurtherReview
+        g_strErrorDialogTitle                               = self.m_dictLanguages[g_strDefaultLang]['STR_ERRORDIALOG_TITLE']
+        g_strErrorDialogMsg_EmptyName                       = self.m_dictLanguages[g_strDefaultLang]['STR_ERRORDIALOG_MSG_EMPTYNAME']
+        g_strErrorDialogMsg_RepetitiveName                  = self.m_dictLanguages[g_strDefaultLang]['STR_ERRORDIALOG_MSG_REPETITIVENAME']
+        g_strErrorDialogMsg_InvalidFileName                 = self.m_dictLanguages[g_strDefaultLang]['STR_ERRORDIALOG_MSG_INVALIDFILENAME']
+        g_strErrorDialogMsg_AssociatedWordList              = self.m_dictLanguages[g_strDefaultLang]['STR_ERRORDIALOG_MSG_ASSOCIATEDWORDLIST']
+        g_strQuestionDialogTitle                            = self.m_dictLanguages[g_strDefaultLang]['STR_QUESTIONDIALOG_TITLE']
+        g_strQuestionDialogMsg_Delete                       = self.m_dictLanguages[g_strDefaultLang]['STR_QUESTIONDIALOG_MSG_DELETE']
+        g_strErrorDialogMsg_InvalidFile                     = self.m_dictLanguages[g_strDefaultLang]['STR_ERRORDIALOG_MSG_INVALIDFILE']
+        g_strErrorDialogMsg_NoWordList                      = self.m_dictLanguages[g_strDefaultLang]['STR_ERRORDIALOG_MSG_NOWORDLIST']
+        g_strErrorDialogMsg_Card1IsNull                     = self.m_dictLanguages[g_strDefaultLang]['STR_ERRORDIALOG_MSG_CARD1ISNULL']
+        g_strErrorDialogMsg_Card1SameAsCard2                = self.m_dictLanguages[g_strDefaultLang]['STR_ERRORDIALOG_MSG_CARD1SAMEASCARD2']
+        g_strQuestionDialogMsg_NotFoundWordList             = self.m_dictLanguages[g_strDefaultLang]['STR_QUESTIONDIALOG_MSG_NOTFOUNDWORDLIST']
+        g_strInfoDialogTitle                                = self.m_dictLanguages[g_strDefaultLang]['STR_INFODIALOG_TITLE']
+        g_strInfoDialogMsg_Complete                         = self.m_dictLanguages[g_strDefaultLang]['STR_INFODIALOG_MSG_COMPLETE']
+        g_strErrorDialogMsg_DownloadFailed                  = self.m_dictLanguages[g_strDefaultLang]['STR_ERRORDIALOG_MSG_DOWNLOADFAILED']
+        g_strInfoDialogMsg_MissionComplete                  = self.m_dictLanguages[g_strDefaultLang]['STR_INFODIALOG_MSG_MISSIONCOMPLETE']
+        g_strInfoDialogMsg_ContinueToStudyNewWords          = self.m_dictLanguages[g_strDefaultLang]['STR_INFODIALOG_MSG_CONTINUETOSTUDYINGNEWWORDS']
+        g_strQuestionDialogMsg_NoFurtherReview              = self.m_dictLanguages[g_strDefaultLang]['STR_QUESTIONDIALOG_MSG_NOFURTHERREVIEW']
+        global g_strLblNewWordsPerGroup, g_strLblOldWordsPerGroup, g_strLblReviewPolicy, g_strCboReviewPolicy_item_LearnFirst, \
+            g_strCboReviewPolicy_item_Random, g_strCboReviewPolicy_item_ReviewFirst
+        g_strLblNewWordsPerGroup                            = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_NEWWORDSPERGROUP']
+        g_strLblOldWordsPerGroup                            = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_OLDWORDSPERGROUP']
+        g_strLblReviewPolicy                                = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_REVIEWPOLICY']
+        g_strCboReviewPolicy_item_LearnFirst                = self.m_dictLanguages[g_strDefaultLang]['STR_CBO_REVIEWPOLICY_ITEM_LEARNFIRST']
+        g_strCboReviewPolicy_item_Random                    = self.m_dictLanguages[g_strDefaultLang]['STR_CBO_REVIEWPOLICY_ITEM_RANDOM']
+        g_strCboReviewPolicy_item_ReviewFirst               = self.m_dictLanguages[g_strDefaultLang]['STR_CBO_REVIEWPOLICY_ITEM_REVIEWFIRST']
+        
+    
+    def FreshCards(self):
+        while len(self.boxCards_boxLibraryBody.children) != 0:
+            self.boxCards_boxLibraryBody.remove(self.boxCards_boxLibraryBody.children[0])
+        for eachCard in self.m_dictTmpCards:
+            boxCard = toga.Box(style = Pack(direction = ROW))
+            mtxtCardInfo = toga.MultilineTextInput(style = Pack(flex = 1), readonly = True)
+            strCardInfo = eachCard +"\n"
+            if len(self.m_dictTmpCards[eachCard].keys()) == 1:
+                strCardInfo += f"\t{g_strOnesided}\n"
+                strCardInfo += f"\t\t{g_strFrontend} {g_strFilePath}:"+ self.m_dictTmpCards[eachCard]['single-sided']['frontend'] +"\n"
+                strCardInfo += f"\t\t{g_strBackend} {g_strFilePath}:" + self.m_dictTmpCards[eachCard]['single-sided']['backend']
+            else:
+                strCardInfo += f"\t{g_strFront}\n"
+                strCardInfo += f"\t\t{g_strFrontend} {g_strFilePath}:"+ self.m_dictTmpCards[eachCard]['front']['frontend'] +"\n"
+                strCardInfo += f"\t\t{g_strBackend} {g_strFilePath}:" + self.m_dictTmpCards[eachCard]['front']['backend'] +"\n"
                 
-                conn = sqlite3.connect(g_strDBPath)
-                cursor = conn.cursor()
-                cursor.execute(f"SELECT MAX(word_no) FROM statistics WHERE wordlist=?",(eachWordlist,)) 
-                iWMaxRowInDB = cursor.fetchone()[0]
-                conn.commit()
-                conn.close()
-                if iMaxRowInSheet != iWMaxRowInDB:
-                    raise FileNotFoundError
-            return True
-        except Exception:
-            return False
+                strCardInfo += f"\t{g_strBack}\n"
+                strCardInfo += f"\t\t{g_strFrontend} {g_strFilePath}:"+ self.m_dictTmpCards[eachCard]['back']['frontend'] +"\n"
+                strCardInfo += f"\t\t{g_strBackend} {g_strFilePath}:" + self.m_dictTmpCards[eachCard]['back']['backend']
+            mtxtCardInfo.value = strCardInfo
             
+            boxCardOperation = toga.Box(style = Pack(direction = COLUMN))
+            btnEditCard = toga.Button("🔧", on_press = partial(self.cbEditExistedCard, eachCard))
+            btnDeleteCard = toga.Button("❌", on_press = partial(self.cbDeleteCard, eachCard))
+            boxCardOperation.add(
+                btnEditCard,
+                btnDeleteCard
+            )
+            
+            boxCard.add(
+                mtxtCardInfo,
+                boxCardOperation
+            )
+            self.boxCards_boxLibraryBody.add(boxCard)
+    
+    def FreshWordLists(self):
+        while len(self.boxWordLists_boxLibraryBody.children) != 0:
+            self.boxWordLists_boxLibraryBody.remove(self.boxWordLists_boxLibraryBody.children[0])
+        lsAllCardTypes = [""]
+        for eachCard in self.m_dictTmpCards:
+            lsAllCardTypes.append(eachCard)
+        for eachWordList in self.m_dictTmpWordLists:
+            boxWordList = toga.Box(style = Pack(direction = COLUMN))
+
+            boxWordListInfo = toga.Box(style = Pack(direction = ROW))
+            txtWordListInfo = toga.TextInput(style = Pack(flex = 1), readonly = True)
+
+            strWordListInfo = eachWordList + f" {g_strFilePath}:" + self.m_dictTmpWordLists[eachWordList]['FilePath']
+            txtWordListInfo.value = strWordListInfo
+            btnEditWordList = toga.Button("🔧", on_press = partial(self.cbEditExistedWordList, eachWordList))
+            btnDeleteWordList = toga.Button("❌", on_press = self.cbDeleteWordList, id = eachWordList)
+            boxWordListInfo.add(
+                txtWordListInfo,
+                btnEditWordList,
+                btnDeleteWordList
+            )
+
+            boxWordListConfig = toga.Box(style = Pack(direction = COLUMN))
+
+            boxWordListCards = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
+
+            lblCard1 = toga.Label(g_strCard1)
+            cboCard1 = toga.Selection(style = Pack(flex = 1), items = lsAllCardTypes)
+            cboCard1.value = self.m_dictTmpWordLists[eachWordList]["CardType1"]
+            cboCard1.on_select = partial(self.cbChangeWordListCardType, eachWordList, 1)
+
+            lblCard2 = toga.Label(g_strCard2)
+            cboCard2 = toga.Selection(style = Pack(flex = 1), items = lsAllCardTypes)
+            cboCard2.value = self.m_dictTmpWordLists[eachWordList]["CardType2"]
+            cboCard2.on_select = partial(self.cbChangeWordListCardType, eachWordList, 2)
+
+            boxWordListCards.add(
+                lblCard1,
+                cboCard1,
+                lblCard2,
+                cboCard2
+            )
+
+            boxWordListLearningPlan = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
+
+            numNewWordsPerGroup = toga.NumberInput(style = Pack(flex = 1, text_align = RIGHT), min_value = 1, \
+                                                   on_change = partial(self.cbChangeNewWordsPerGroup, eachWordList))
+
+            numNewWordsPerGroup.value = self.m_dictTmpWordLists[eachWordList]["NewWordsPerGroup"]
+
+            lblNewWordsPerGroup = toga.Label(g_strLblNewWordsPerGroup)
+
+            numOldWordsPerGroup = toga.NumberInput(style = Pack(flex = 1, padding_left = 5, text_align = RIGHT), min_value = 1,\
+                                                   on_change = partial(self.cbChangeOldWordsPerGroup, eachWordList))
+            numOldWordsPerGroup.value = self.m_dictTmpWordLists[eachWordList]["OldWordsPerGroup"]
+
+            lblOldWordsPerGroup = toga.Label(g_strLblOldWordsPerGroup)
+
+            lblReviewPolicy = toga.Label(g_strLblReviewPolicy, style = Pack(padding_left = 5))
+
+            '''# This is not supported
+            cboReviewPolicy = toga.Selection(style = Pack(flex = 1),\
+                                                items = [\
+                                                    {"name": g_strCboReviewPolicy_item_LearnFirst,  "val": 0},\
+                                                    {"name": g_strCboReviewPolicy_item_Random,      "val": 1},\
+                                                    {"name": g_strCboReviewPolicy_item_ReviewFirst, "val": 2},\
+                                                ],\
+                                                accessor = "name",\
+                                                on_select = partial(self.cbChangeReviewPolicy, eachWordList)\
+                                            )
+            '''
+            cboReviewPolicy = toga.Selection(style = Pack(flex = 1),\
+                                                items = [g_strCboReviewPolicy_item_LearnFirst, g_strCboReviewPolicy_item_Random, g_strCboReviewPolicy_item_ReviewFirst],\
+                                                on_select = partial(self.cbChangeReviewPolicy, eachWordList)\
+                                            )
+            cboReviewPolicy.value = cboReviewPolicy.items[self.m_dictTmpWordLists[eachWordList]["policy"]]
+            boxWordListLearningPlan.add(
+                numNewWordsPerGroup,
+                lblNewWordsPerGroup,
+                numOldWordsPerGroup,
+                lblOldWordsPerGroup,
+                lblReviewPolicy,
+                cboReviewPolicy
+            )
+            boxWordListConfig.add(
+                boxWordListCards,
+                boxWordListLearningPlan
+            )
+
+            boxWordList.add(
+                boxWordListInfo, 
+                boxWordListConfig
+            )
+            self.boxWordLists_boxLibraryBody.add(boxWordList)
+
+
+    def BackToLibraryAndFresh(self):
+        while len(self.boxBody.children) != 0:
+            self.boxBody.remove(self.boxBody.children[0])
+        self.btnIndex_boxNavigateBar.style.update(font_weight = NORMAL, background_color = g_clrBg, color = 'black')
+        self.btnSettings_boxNavigateBar.style.update(font_weight = NORMAL, background_color = g_clrBg, color = 'black')
+        self.btnLibrary_boxNavigateBar.style.update(font_weight = BOLD, background_color = g_clrPressedNavigationBtn, color = '#1651AA')
+        self.boxBody.add(
+            self.boxLibraryBody
+        )
+        self.FreshCards()
+        self.FreshWordLists()
+    
+    def ChangeWordLearningBtns(self, iStatus):
+        if iStatus == 0: # Clear all buttons
+            while len(self.boxIndexBody_Row3Blank.children) != 0:
+                self.boxIndexBody_Row3Blank.remove(self.boxIndexBody_Row3Blank.children[0])
+            while len(self.boxIndexBody_Row5.children) != 0:
+                self.boxIndexBody_Row5.remove(self.boxIndexBody_Row5.children[0])
+        elif iStatus == 1: # Show the front
+            self.boxIndexBody_Row5.add(
+                self.btnShowBack
+            )
+        elif iStatus == 2: # Show the back
+            self.boxIndexBody_Row3Blank.add(
+                self.btnDelete
+            )
+            self.boxIndexBody_Row5.add(
+                self.btnStrange,
+                self.btnVague,
+                self.btnFamiliar
+            )
 
     def GenerateNewWordsSeqOfCurrentWordList(self):
         conn = sqlite3.connect(g_strDBPath)
@@ -1324,240 +1539,7 @@ class wordgets(toga.App):
         result = [item for pair in zip(lsGroups1, lsGroups2) for item in pair]
         for elem in result:
             self.m_lsRememberSeq.extend(elem)
-    
-    def cbChangeCurWordList(self, widget):
-        global g_iTmpPrevWordNo, g_iTmpPrevCardType, g_iTmpCntStudiedNewWords, g_iTmpCntStudiedOldWords, g_strOpenedWordListName
-        if widget.value == g_strOpenedWordListName:
-            return
-        g_strOpenedWordListName = widget.value
-        g_iTmpPrevWordNo = -1
-        g_iTmpPrevCardType = -1
-        g_iTmpCntStudiedNewWords = 0
-        g_iTmpCntStudiedOldWords = 0
-        self.lblLearningProgressValue_wndMain.text = ""
-        self.GenerateNewWordsSeqOfCurrentWordList()
-        self.cbNextCard(-1, None)
-        self.SaveConfiguration()
 
-    # Function
-    def ChangeLanguageAccordingDefaultLang(self):
-        self.lblLang_wndOpt.text                        = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_LANG_TEXT']
-        self.lblCard_wndMgmt.text                       = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_CARD_TEXT']
-        self.lblWordList_wndMgmt.text                   = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_WORDLIST_TEXT']
-        self.wndOpt.title                               = self.m_dictLanguages[g_strDefaultLang]['STR_WND_OPT_TITLE']
-        self.wndMgmt.title                              = self.m_dictLanguages[g_strDefaultLang]['STR_WND_MGMT_TITLE']
-        self.chkIsReviewOnly_wndMain.text               = self.m_dictLanguages[g_strDefaultLang]['STR_CHK_ISREVIEWONLY_TEXT']
-        self.btnShowBack.text                           = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_SHOWBACK_TEXT']
-        self.wndAddCard.title                           = self.m_dictLanguages[g_strDefaultLang]['STR_WND_ADDCARD_TITLE']
-        self.lblFrontFrontend_WndAddCard.text           = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_FRONT_FRONTEND_TEXT']
-        self.lblFrontBackend_WndAddCard.text            = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_FRONT_BACKEND_TEXT']
-        self.lblBackFrontend_WndAddCard.text            = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_BACK_FRONTEND_TEXT']
-        self.lblBackBackend_WndAddCard.text             = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_BACK_BACKEND_TEXT']
-        self.chkEnableBack_wndAddCard.text              = self.m_dictLanguages[g_strDefaultLang]['STR_CHK_ENABLEBACK_TEXT']
-        self.btnSaveNewCard_wndAddCard.text             = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_SAVENEWCARD_TEXT']
-        self.lblSpecifyNewCardName_wndAddCard.text      = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_SPECIFYNEWCARDNAME_TEXT']
-        self.wndAddWordList.title                       = self.m_dictLanguages[g_strDefaultLang]['STR_WND_ADDWORDLIST_TITLE']
-        self.lblExcelFile_WndAddWordList.text           = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_EXCELFILE_TEXT']
-        self.btnSaveNewWordList_wndAddWordList.text     = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_SAVENEWWORDLIST_TEXT']
-        self.lblSpecifyNewWordListName_wndAddWordList.text=self.m_dictLanguages[g_strDefaultLang]['STR_LBL_SPECIFYNEWWORDISTNAME_TEXT']
-        self.btnApply_wndMgmt.text                      = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_APPLY_TEXT']
-        self.txtSpecifyNewWordListName_wndAddWordList.placeholder = self.m_dictLanguages[g_strDefaultLang]['STR_TXT_PLACEHOLDER_LEGALNAME']
-        self.txtSpecifyNewCardName_wndAddCard.placeholder = self.m_dictLanguages[g_strDefaultLang]['STR_TXT_PLACEHOLDER_LEGALNAME']
-        self.lblLearningProgressItem_wndMain.text       = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_LEARNINGPROGRESSITEM_TEXT']
-        self.btnVisitOfficialWebsite_wndOpt.text        = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_VISITOFFICIALWEBSITE_TEXT']
-        global g_strMsgBox_OpenFileDialogTitle, g_strMsgBox_ErrorDialogTitle, g_strMsgBox_ErrorDialogMsg_InvalidFile,\
-            g_strMsgBox_InfoDialogTitle, g_strMsgBox_InfoDialogMsg_EmptyCardName, g_strMsgBox_InfoDialogMsg_RepetitiveCardName,\
-            g_strMsgBox_InfoDialogMsg_EmptyWordListName, g_strMsgBox_InfoDialogMsg_RepetitiveWordListName,\
-            g_strMsgBox_ErrorDialogMsg_CannotCreateCard, g_strMsgBox_ErrorDialogMsg_CannotCreateWordlist,\
-            g_strMsgBox_ErrorDialogMsg_CardHasAssociatedWordlist, g_strMsgBox_ErrorDialogMsg_Card1IsNull,\
-            g_strMsgBox_QuestionDialogTitle_Warning, g_strMsgBox_QuestionDialogMsg_WarningOnDeletingWordList,\
-            g_strMsgBox_QuestionDialogMsg_NotFoundWordList, g_strMsgBox_ErrorDialogMsg_NoWordList,\
-            g_strMsgBox_ErrorDialogMsg_Card1SameAsCard2, g_strMsgBox_InfoDialogMsg_Completed, g_strMsgBox_QuestionDialogMsg_DeleteThisWord,\
-            g_strMsgBox_InfoDialogMsg_ContinueToStudyNewWords, g_strMsgBox_InfoDialogMsg_MissionComplete,g_strMsgBox_ErrorDialogMsg_InvalidFiles
-        g_strMsgBox_OpenFileDialogTitle                 = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_OPENFILEDIALOG_TITLE']
-        g_strMsgBox_ErrorDialogTitle                    = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_ERRORDIALOG_TITLE']
-        g_strMsgBox_ErrorDialogMsg_InvalidFile          = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_ERRORDIALOG_MSG_INVALIDFILE']
-        g_strMsgBox_InfoDialogTitle                     = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_INFODIALOG_TITLE']
-        g_strMsgBox_InfoDialogMsg_EmptyCardName         = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_INFODIALOG_MSG_EMPTYCARDNAME']
-        g_strMsgBox_InfoDialogMsg_RepetitiveCardName    = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_INFODIALOG_MSG_REPETITIVECARDNAME']
-        g_strMsgBox_InfoDialogMsg_EmptyWordListName     = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_INFODIALOG_MSG_EMPTYWORDLISTNAME']
-        g_strMsgBox_InfoDialogMsg_RepetitiveWordListName= self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_INFODIALOG_MSG_REPETITIVEWORDLISTNAME']
-        g_strMsgBox_ErrorDialogMsg_CannotCreateCard     = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_ERRORDIALOG_MSG_CANNOTCREATECARD']
-        g_strMsgBox_ErrorDialogMsg_CannotCreateWordlist = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_ERRORDIALOG_MSG_CANNOTCREATEWORDLIST']
-        g_strMsgBox_ErrorDialogMsg_CardHasAssociatedWordlist = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_ERRORDIALOG_MSG_CARDHASASSOCIATEDWORDLIST']
-        g_strMsgBox_ErrorDialogMsg_Card1IsNull          = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_ERRORDIALOG_MSG_CARD1ISNULL']
-        g_strMsgBox_QuestionDialogTitle_Warning         = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_QUESTIONDIALOG_TITLE_WARNING']
-        g_strMsgBox_QuestionDialogMsg_WarningOnDeletingWordList = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_QUESTIONDIALOG_MSG_WARNINGONDELETINGWORDLIST']
-        g_strMsgBox_QuestionDialogMsg_NotFoundWordList  = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_QUESTIONDIALOG_MSG_NOTFOUNDWORDLIST']
-        g_strMsgBox_ErrorDialogMsg_NoWordList           = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_ERRORDIALOG_MSG_NOWORDLIST']
-        g_strMsgBox_ErrorDialogMsg_Card1SameAsCard2     = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_ERRORDIALOG_MSG_CARD1SAMEASCARD2']
-        g_strMsgBox_InfoDialogMsg_Completed             = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_INFODIALOG_MSG_COMPLETED']
-        g_strMsgBox_QuestionDialogMsg_DeleteThisWord    = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_QUESTIONDIALOG_MSG_DELETETHISWORD']
-        g_strMsgBox_InfoDialogMsg_ContinueToStudyNewWords= self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_INFODIALOG_MSG_CONTINUETOSTUDYINGNEWWORDS']
-        g_strMsgBox_InfoDialogMsg_MissionComplete       = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_INFODIALOG_MSG_MISSIONCOMPLETE']
-        g_strMsgBox_ErrorDialogMsg_InvalidFiles          = self.m_dictLanguages[g_strDefaultLang]['STR_MSGBOX_ERRORDIALOG_MSG_INVALIDFILES']
-        global g_strFront, g_strBack, g_strOnesided, g_strFrontend, g_strBackend, g_strFilePath, g_strCard1, g_strCard2
-        g_strFront                                      = self.m_dictLanguages[g_strDefaultLang]['STR_FRONT']
-        g_strBack                                       = self.m_dictLanguages[g_strDefaultLang]['STR_BACK']
-        g_strOnesided                                   = self.m_dictLanguages[g_strDefaultLang]['STR_ONESIDED']
-        g_strFrontend                                   = self.m_dictLanguages[g_strDefaultLang]['STR_FRONTEND']
-        g_strBackend                                    = self.m_dictLanguages[g_strDefaultLang]['STR_BACKEND']
-        g_strFilePath                                   = self.m_dictLanguages[g_strDefaultLang]['STR_FILEPATH']
-        g_strCard1                                      = self.m_dictLanguages[g_strDefaultLang]['STR_CARD_1']
-        g_strCard2                                      = self.m_dictLanguages[g_strDefaultLang]['STR_CARD_2']
-        global g_strLblNewWordsPerGroup, g_strLblOldWordsPerGroup, g_strLblReviewPolicy, g_strCboReviewPolicy_item_LearnFirst, g_strCboReviewPolicy_item_Random, g_strCboReviewPolicy_item_ReviewFirst
-        g_strLblNewWordsPerGroup                        = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_NEWWORDSPERGROUP']
-        g_strLblOldWordsPerGroup                        = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_OLDWORDSPERGROUP']
-        g_strLblReviewPolicy                            = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_REVIEWPOLICY']
-        g_strCboReviewPolicy_item_LearnFirst            = self.m_dictLanguages[g_strDefaultLang]['STR_CBO_REVIEWPOLICY_ITEM_LEARNFIRST']
-        g_strCboReviewPolicy_item_Random                = self.m_dictLanguages[g_strDefaultLang]['STR_CBO_REVIEWPOLICY_ITEM_RANDOM']
-        g_strCboReviewPolicy_item_ReviewFirst           = self.m_dictLanguages[g_strDefaultLang]['STR_CBO_REVIEWPOLICY_ITEM_REVIEWFIRST']
-
-
-    def FreshSbCards(self):
-        while len(self.boxCards_wndMgmt.children) != 0:
-            self.boxCards_wndMgmt.remove(self.boxCards_wndMgmt.children[0])
-        for eachCard in self.m_dictTmpCards:
-            boxCard = toga.Box(style = Pack(direction = ROW))
-            mtxtCardInfo = toga.MultilineTextInput(style = Pack(flex = 1), readonly = True)
-            strCardInfo = eachCard +"\n"
-            if len(self.m_dictTmpCards[eachCard].keys()) == 1:
-                strCardInfo += f"\t{g_strOnesided}\n"
-                strCardInfo += f"\t\t{g_strFrontend} {g_strFilePath}:"+ self.m_dictTmpCards[eachCard]['single-sided']['frontend'] +"\n"
-                strCardInfo += f"\t\t{g_strBackend} {g_strFilePath}:" + self.m_dictTmpCards[eachCard]['single-sided']['backend']
-            else:
-                strCardInfo += f"\t{g_strFront}\n"
-                strCardInfo += f"\t\t{g_strFrontend} {g_strFilePath}:"+ self.m_dictTmpCards[eachCard]['front']['frontend'] +"\n"
-                strCardInfo += f"\t\t{g_strBackend} {g_strFilePath}:" + self.m_dictTmpCards[eachCard]['front']['backend'] +"\n"
-                
-                strCardInfo += f"\t{g_strBack}\n"
-                strCardInfo += f"\t\t{g_strFrontend} {g_strFilePath}:"+ self.m_dictTmpCards[eachCard]['back']['frontend'] +"\n"
-                strCardInfo += f"\t\t{g_strBackend} {g_strFilePath}:" + self.m_dictTmpCards[eachCard]['back']['backend']
-            mtxtCardInfo.value = strCardInfo
-
-            btnDeleteCard = toga.Button("❌", on_press = partial(self.cbDeleteCard, eachCard))
-            boxCard.add(
-                mtxtCardInfo,
-                btnDeleteCard
-            )
-            self.boxCards_wndMgmt.add(boxCard)
-
-    def FreshSbWordLists(self):
-        while len(self.boxWordLists_wndMgmt.children) != 0:
-            self.boxWordLists_wndMgmt.remove(self.boxWordLists_wndMgmt.children[0])
-        lsAllCardTypes = [""]
-        for eachCard in self.m_dictTmpCards:
-            lsAllCardTypes.append(eachCard)
-
-        for eachWordList in self.m_dictTmpWordLists:
-            boxWordList = toga.Box(style = Pack(direction = COLUMN))
-
-            boxWordListInfo = toga.Box(style = Pack(direction = ROW))
-            txtWordListInfo = toga.TextInput(style = Pack(flex = 1), readonly = True)
-
-            strWordListInfo = eachWordList + f" {g_strFilePath}:" + self.m_dictTmpWordLists[eachWordList]['FilePath']
-            txtWordListInfo.value = strWordListInfo
-            
-            btnDeleteWordList = toga.Button("❌", on_press = partial(self.cbDeleteWordList, eachWordList))
-            boxWordListInfo.add(
-                txtWordListInfo,
-                btnDeleteWordList
-            )
-
-            boxWordListConfig = toga.Box(style = Pack(direction = COLUMN))
-
-            boxWordListCards = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
-
-
-            lblCard1 = toga.Label(g_strCard1)
-            cboCard1 = toga.Selection(style = Pack(flex = 1), items = lsAllCardTypes, \
-                                      on_select = partial(self.cbChangeWordListCardType, eachWordList, 1))
-            cboCard1.value = self.m_dictTmpWordLists[eachWordList]["CardType1"]
-
-            lblCard2 = toga.Label(g_strCard2)
-            cboCard2 = toga.Selection(style = Pack(flex = 1), items = lsAllCardTypes, \
-                                      on_select = partial(self.cbChangeWordListCardType, eachWordList, 2))
-            cboCard2.value = self.m_dictTmpWordLists[eachWordList]["CardType2"]
-
-            boxWordListCards.add(
-                lblCard1,
-                cboCard1,
-                lblCard2,
-                cboCard2
-            )
-            
-            boxWordListLearningPlan = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
-
-            numNewWordsPerGroup = toga.NumberInput(style = Pack(flex = 1, text_align = RIGHT), min_value = 1, \
-                                                   on_change = partial(self.cbChangeNewWordsPerGroup, eachWordList))
-
-            numNewWordsPerGroup.value = self.m_dictTmpWordLists[eachWordList]["NewWordsPerGroup"]
-
-            lblNewWordsPerGroup = toga.Label(g_strLblNewWordsPerGroup)
-
-            numOldWordsPerGroup = toga.NumberInput(style = Pack(flex = 1, padding_left = 5, text_align = RIGHT), min_value = 1,\
-                                                   on_change = partial(self.cbChangeOldWordsPerGroup, eachWordList))
-            numOldWordsPerGroup.value = self.m_dictTmpWordLists[eachWordList]["OldWordsPerGroup"]
-
-            lblOldWordsPerGroup = toga.Label(g_strLblOldWordsPerGroup)
-
-            lblReviewPolicy = toga.Label(g_strLblReviewPolicy, style = Pack(padding_left = 5))
-
-            '''# This is not supported
-            cboReviewPolicy = toga.Selection(style = Pack(flex = 1),\
-                                                items = [\
-                                                    {"name": g_strCboReviewPolicy_item_LearnFirst,  "val": 0},\
-                                                    {"name": g_strCboReviewPolicy_item_Random,      "val": 1},\
-                                                    {"name": g_strCboReviewPolicy_item_ReviewFirst, "val": 2},\
-                                                ],\
-                                                accessor = "name",\
-                                                on_select = partial(self.cbChangeReviewPolicy, eachWordList)\
-                                            )
-            '''
-            cboReviewPolicy = toga.Selection(style = Pack(flex = 1),\
-                                                items = [g_strCboReviewPolicy_item_LearnFirst, g_strCboReviewPolicy_item_Random, g_strCboReviewPolicy_item_ReviewFirst],\
-                                                on_select = partial(self.cbChangeReviewPolicy, eachWordList)\
-                                            )
-            cboReviewPolicy.value = cboReviewPolicy.items[self.m_dictTmpWordLists[eachWordList]["policy"]]
-            boxWordListLearningPlan.add(
-                numNewWordsPerGroup,
-                lblNewWordsPerGroup,
-                numOldWordsPerGroup,
-                lblOldWordsPerGroup,
-                lblReviewPolicy,
-                cboReviewPolicy
-            )
-            boxWordListConfig.add(
-                boxWordListCards,
-                boxWordListLearningPlan
-            )
-
-            boxWordList.add(
-                boxWordListInfo, 
-                boxWordListConfig
-            )
-            self.boxWordLists_wndMgmt.add(boxWordList)
-
-    def ChangeWordLearningBtns(self, iStatus):
-        if iStatus == 0: # Clear all buttons
-            while len(self.boxRow2Right_wndMain.children) != 0:
-                self.boxRow2Right_wndMain.remove(self.boxRow2Right_wndMain.children[0])
-            while len(self.boxRow4_wndMain.children) != 0:
-                self.boxRow4_wndMain.remove(self.boxRow4_wndMain.children[0])
-        elif iStatus == 1: # Show the front
-            self.boxRow4_wndMain.add(
-                self.btnShowBack
-            )
-        elif iStatus == 2: # Show the back
-            self.boxRow2Right_wndMain.add(
-                self.btnDelete
-            )
-            self.boxRow4_wndMain.add(
-                self.btnStrange,
-                self.btnVague,
-                self.btnFamiliar
-            )
-            
     def SaveWordListsAndCardsToFiles(self):
         global g_dictWordLists, g_dictCards
         jsonWordLists = json.dumps(g_dictWordLists)
@@ -1566,6 +1548,14 @@ class wordgets(toga.App):
             f.write(jsonWordLists)
         with open(g_strCardsPath, 'w') as f:
             f.write(jsonCards)
+        print("-------------------------------------",g_strWordlistsPath)
+        print(jsonWordLists)
+        print("--------------------------------------",g_strCardsPath)
+        print(jsonCards)
+        with open(g_strWordlistsPath, 'r') as f:
+            print(jsonWordLists)
+        with open(g_strCardsPath, 'r') as f:
+            print(jsonCards)
 
     def SaveConfiguration(self):
         (iX, iY) = self.main_window.position
@@ -1581,6 +1571,58 @@ class wordgets(toga.App):
         })
         with open(g_strConfigPath, 'w') as f:
             f.write(json_str)
-    
+
+    def ValidateFiles(self):
+        if len(g_dictCards) == 0 or len(g_dictWordLists) == 0:
+            return False
+        try:
+            # Validate cards
+            for eachCard in g_dictCards:
+                if len(g_dictCards[eachCard]) == 1:
+                    strHtmlPath = g_dictCards[eachCard]['single-sided']['frontend']
+                    with open(strHtmlPath, 'r') as f:
+                        soup = BeautifulSoup(f.read(), 'html.parser')
+                    strPyPath = g_dictCards[eachCard]['single-sided']['backend']
+                    with open(strPyPath, 'r') as f:
+                        strCode = f.read()
+                        compile(strCode, strPyPath, 'exec')
+                else:
+
+                    strFHtmlPath = g_dictCards[eachCard]['front']['frontend']
+                    with open(strFHtmlPath, 'r') as f:
+                        soup = BeautifulSoup(f.read(), 'html.parser')
+                    strFPyPath = g_dictCards[eachCard]['front']['backend']
+                    with open(strFPyPath, 'r') as f:
+                        strCode = f.read()
+                        compile(strCode, strFPyPath, 'exec')
+
+                    strBHtmlPath = g_dictCards[eachCard]['back']['frontend']
+                    with open(strBHtmlPath, 'r') as f:
+                        soup = BeautifulSoup(f.read(), 'html.parser')
+                    strBPyPath = g_dictCards[eachCard]['back']['backend']
+                    with open(strBPyPath, 'r') as f:
+                        strCode = f.read()
+                        compile(strCode, strBPyPath, 'exec')
+
+            for eachWordlist in g_dictWordLists:  
+                # Validate wordlists
+                strXlsxPath = g_dictWordLists[eachWordlist]['FilePath'] 
+                xlsx = load_workbook(strXlsxPath, read_only = True)
+                sheet = xlsx.worksheets[0]
+                iMaxRowInSheet = sheet.max_row
+                xlsx.close()
+                
+                conn = sqlite3.connect(g_strDBPath)
+                cursor = conn.cursor()
+                cursor.execute(f"SELECT MAX(word_no) FROM statistics WHERE wordlist=?",(eachWordlist,)) 
+                iWMaxRowInDB = cursor.fetchone()[0]
+                conn.commit()
+                conn.close()
+                if iMaxRowInSheet != iWMaxRowInDB:
+                    raise FileNotFoundError
+            return True
+        except Exception:
+            return False
+
 def main():
     return wordgets()
