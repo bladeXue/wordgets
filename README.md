@@ -56,6 +56,7 @@ output = template.render(variable_name = variable_name,
 ```
 
 > **If you use it on a moblie OS, please use http/https to import data.**
+> 
 > **如果你使用的是移动操作系统来运行它，请使用http/https的方式导入数据**
 
 *   Support **customizing one or two types of cards with different number of sides** via a simple Management.
