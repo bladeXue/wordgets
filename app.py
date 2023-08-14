@@ -27,7 +27,7 @@ g_strWordlistsPath  = ""
 g_dictCards         = {}
 g_dictWordLists     = {}
 g_EmptyHtml         = '<!DOCTYPE html> <html> <head> <title> </title> </head> <body> </body> </html>' #Cannot be "". Otherwise, it will not work
-g_bIsMobile         = False
+g_bIsMobile         = True
 
 #Config
 g_strDefaultLang        = "English"
@@ -137,14 +137,14 @@ class wordgets(toga.App):
         return factory_app(interface=self)
 
     def startup(self):
-        global g_strRunPath, g_strLangPath, g_strDBPath, g_strConfigPath, g_strCardsPath, g_strWordlistsPath
+        global g_strRunPath, g_strLangPath, g_strDBPath, g_strConfigPath, g_strCardsPath, g_strWordlistsPath, g_strDataPath
         g_strRunPath        = self.paths.app.absolute()
+        g_strDataPath       = self.paths.data.absolute()
         g_strLangPath       = os.path.join(g_strRunPath, "resources/languages.json")
-        g_strDBPath         = os.path.join(g_strRunPath, "resources/wordgets_stat.db")
-        g_strConfigPath     = os.path.join(g_strRunPath, "resources/configuration.json")
-        g_strCardsPath      = os.path.join(g_strRunPath, "resources/wordlists.json")
-        g_strWordlistsPath  = os.path.join(g_strRunPath, "resources/cards.json")
-
+        g_strDBPath         = os.path.join(g_strDataPath, "wordgets_stat.db")
+        g_strConfigPath     = os.path.join(g_strDataPath, "configuration.json")
+        g_strCardsPath      = os.path.join(g_strDataPath, "wordlists.json")
+        g_strWordlistsPath  = os.path.join(g_strDataPath, "cards.json")
         self.main_window    = toga.MainWindow(title=self.formal_name)
         boxMain             = toga.Box(style = Pack(direction = COLUMN, background_color = g_clrBg))
         boxNavigationBar    = toga.Box(style = Pack(direction = ROW, padding_top = 5, padding_bottom = 5, alignment = CENTER))
@@ -164,7 +164,7 @@ class wordgets(toga.App):
             boxNavigationBar,
             self.boxBody
         )
-
+        
         # Index body
         self.boxIndexBody = toga.Box(style=Pack(direction = COLUMN, flex = 1))
         boxIndexBody_Row1 = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
@@ -192,19 +192,22 @@ class wordgets(toga.App):
             boxIndexBody_Row3Hidden,
             self.boxIndexBody_Row3Blank
         )
-
         self.wbWord_boxIndexBody = toga.WebView(style = Pack(direction = COLUMN, flex = 1))
 
         boxIndexBody_Row5Border = toga.Box(style=Pack(direction = ROW))
-        boxIndexBody_Row5Hidden = toga.Box(style=Pack(direction = ROW))
+        boxIndexBody_Row5Hidden = toga.Box(style=Pack(direction = COLUMN))
         btnVoidForRemainRow5_boxIndexBody = toga.Button("",style=Pack(visibility = HIDDEN, width = 1)) #If not, the box will not appear
         boxIndexBody_Row5Hidden.add(
             btnVoidForRemainRow5_boxIndexBody
         )
-        self.boxIndexBody_Row5 = toga.Box(style=Pack(direction = ROW, flex = 1))
+        boxIndexBody_Row5_outside = toga.Box(style=Pack(direction = COLUMN, flex = 1))
+        self.boxIndexBody_Row5 = toga.Box(style=Pack(direction = ROW, flex = 1))# Changing tab will be lost
+        boxIndexBody_Row5_outside.add(
+            self.boxIndexBody_Row5
+        )
         boxIndexBody_Row5Border.add(
             boxIndexBody_Row5Hidden,
-            self.boxIndexBody_Row5
+            boxIndexBody_Row5_outside
         )
 
         self.boxIndexBody.add(
@@ -431,23 +434,19 @@ class wordgets(toga.App):
 
         self.chkReviewOnly_boxIndexBody.value = g_bOnlyReview
         
-        self.main_window.info_dialog("test",g_strWordlistsPath)
         if os.path.exists(g_strWordlistsPath) == True:
             with open(g_strWordlistsPath, "r") as f:
                 global g_dictWordLists
                 g_dictWordLists = json.load(f)
-                self.main_window.info_dialog("test",str(g_dictWordLists))
-        self.main_window.info_dialog("test",g_strCardsPath)
+                
         if os.path.exists(g_strCardsPath) == True:
             with open(g_strCardsPath, "r") as f:
                 global g_dictCards
                 g_dictCards = json.load(f)
-                self.main_window.info_dialog("test",str(g_dictCards))
         
         self.wbWord_boxIndexBody.set_content("NO_CONTENT", g_EmptyHtml)
 
         self.m_lsRememberSeq = []
-
         bAllFilesAreValid = self.ValidateFiles()
         if bAllFilesAreValid == True and os.path.exists(g_strDBPath) == True: # Not support displaying an error dialog when no operation on the just executed program. If so, re-config is required.
             
@@ -587,7 +586,7 @@ class wordgets(toga.App):
                     try:
                         response = requests.get(strFrontFrontendFilePath, stream = True)
                         filename = strCardCname+"-front.html"
-                        strFileWriteTo = os.path.join(g_strRunPath, "download/"+filename)
+                        strFileWriteTo = os.path.join(g_strDataPath, filename)
                         with open(strFileWriteTo, "wb") as f:
                             for chunk in response.iter_content(chunk_size = 1024*1024):
                                 if chunk:
@@ -601,7 +600,7 @@ class wordgets(toga.App):
                     try:
                         response = requests.get(strFrontBackendFilePath, stream = True)
                         filename = strCardCname+"-front.py"
-                        strFileWriteTo = os.path.join(g_strRunPath, "download/"+filename)
+                        strFileWriteTo = os.path.join(g_strDataPath,filename)
                         with open(strFileWriteTo, "wb") as f:
                             for chunk in response.iter_content(chunk_size = 1024*1024):
                                 if chunk:
@@ -626,7 +625,7 @@ class wordgets(toga.App):
                     try:
                         response = requests.get(strFrontFrontendFilePath, stream = True)
                         filename = strCardCname+"-front.html"
-                        strFileWriteTo = os.path.join(g_strRunPath, "download/"+filename)
+                        strFileWriteTo = os.path.join(g_strDataPath, filename)
                         with open(strFileWriteTo, "wb") as f:
                             for chunk in response.iter_content(chunk_size = 1024*1024):
                                 if chunk:
@@ -640,7 +639,7 @@ class wordgets(toga.App):
                     try:
                         response = requests.get(strFrontBackendFilePath, stream = True)
                         filename = strCardCname+"-front.py"
-                        strFileWriteTo = os.path.join(g_strRunPath, "download/"+filename)
+                        strFileWriteTo = os.path.join(g_strDataPath, filename)
                         with open(strFileWriteTo, "wb") as f:
                             for chunk in response.iter_content(chunk_size = 1024*1024):
                                 if chunk:
@@ -653,7 +652,7 @@ class wordgets(toga.App):
                     try:
                         response = requests.get(strBackFrontendFilePath, stream = True)
                         filename = strCardCname+"-back.html"
-                        strFileWriteTo = os.path.join(g_strRunPath, "download/"+filename)
+                        strFileWriteTo = os.path.join(g_strDataPath, filename)
                         with open(strFileWriteTo, "wb") as f:
                             for chunk in response.iter_content(chunk_size = 1024*1024):
                                 if chunk:
@@ -667,7 +666,7 @@ class wordgets(toga.App):
                     try:
                         response = requests.get(strBackBackendFilePath, stream = True)
                         filename = strCardCname+"-back.py"
-                        strFileWriteTo = os.path.join(g_strRunPath, "download/"+filename)
+                        strFileWriteTo = os.path.join(g_strDataPath, filename)
                         with open(strFileWriteTo, "wb") as f:
                             for chunk in response.iter_content(chunk_size = 1024*1024):
                                 if chunk:
@@ -706,8 +705,8 @@ class wordgets(toga.App):
             if strExcelFilePath[:4] == "http":
                     try:
                         response = requests.get(strExcelFilePath, stream = True)
-                        filename = strWordListCname+".xlsx"
-                        strFileWriteTo = os.path.join(g_strRunPath, "download/"+filename)
+                        filename = strWordListCname + ".xlsx"
+                        strFileWriteTo = os.path.join(g_strDataPath, filename)
                         with open(strFileWriteTo, "wb") as f:
                             for chunk in response.iter_content(chunk_size = 1024*1024):
                                 if chunk:
@@ -1548,14 +1547,6 @@ class wordgets(toga.App):
             f.write(jsonWordLists)
         with open(g_strCardsPath, 'w') as f:
             f.write(jsonCards)
-        print("-------------------------------------",g_strWordlistsPath)
-        print(jsonWordLists)
-        print("--------------------------------------",g_strCardsPath)
-        print(jsonCards)
-        with open(g_strWordlistsPath, 'r') as f:
-            print(jsonWordLists)
-        with open(g_strCardsPath, 'r') as f:
-            print(jsonCards)
 
     def SaveConfiguration(self):
         (iX, iY) = self.main_window.position
