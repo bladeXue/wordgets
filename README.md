@@ -1,20 +1,20 @@
 # Wordgets: A word memory desktop gadget
 
-### DEPRECATED VERSION! CHANGE ANOTHER CROSS-PLATFORM FRAMEWORK TO REMAKE  不支持当前版本！更换别的跨平台框架重做
+### 
 
 Wordgets是一个单词记忆桌面小工具。
 
-==**ALERT**: The current version is unstable. DO NOT TAKE IT AS THE FULL OF YOUR DAILY-USED WORD-MEMORY TOOL. This code is for the purpose of learning and communication.==
+==**ALERT**: Bug exists. ==
 
-==警告：当前版本不稳定。切勿完全把它当成日常单词记忆工具。代码用于学习和交流用途。==
+==警告：存在BUG。==
 
 ![wordgets Latest version](https://github.com/leaffeather/images/blob/main/wordgets-2.png?raw=true)
 ![image](https://github.com/leaffeather/wordgets/assets/134275609/891ef171-4a9b-41ee-b379-8e5d07166747)
 
 
-This project was based on [**BeeWare**](https://github.com/beeware) - a cross-platform Python GUI library. As too many fatal problems were encountered, so I decided to give up and change another framework to remake it. It has the following features:
+This project was based on [**BeeWare**](https://github.com/beeware) - a cross-platform Python GUI library. It has the following features:
 
-该项目之前基于BeeWare，这是一个跨平台的Python图形用户界面库。但由于遇到了太多的致命问题，我决定放弃并更换别的框架重做。此应用有如下特征：
+该项目之前基于BeeWare，这是一个跨平台的Python图形用户界面库。此应用有如下特征：
 
 *   **The rearend is supported**, which is the maximum motivation that I developed this app. The rearend part of rendering a template webpage is separated from the main application, which means that you can customize more functions in liberty. Here is the tutorial:
 
