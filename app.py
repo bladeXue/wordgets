@@ -16,6 +16,15 @@ from supermemo2 import SMTwo
 from datetime import datetime
 import random
 from typing import Union
+import time
+from threading import Thread
+import urllib.parse
+import hashlib
+import shutil
+import asyncio
+import urllib.request
+from pydub import AudioSegment
+from pydub.playback import play
 
 # Global variables
 g_strRunPath        = ""
@@ -28,6 +37,9 @@ g_dictCards         = {}
 g_dictWordLists     = {}
 g_EmptyHtml         = '<!DOCTYPE html> <html> <head> <title> </title> </head> <body> </body> </html>' #Cannot be "". Otherwise, it will not work
 g_bIsMobile         = True
+g_strAppId          = ""
+g_strAccessToken    = ""
+g_strUsername       = ""
 
 #Config
 g_strDefaultLang        = "English"
@@ -81,6 +93,17 @@ g_strErrorDialogMsg_DownloadFailed          = ""
 g_strInfoDialogMsg_MissionComplete          = ""
 g_strInfoDialogMsg_ContinueToStudyNewWords  = ""
 g_strQuestionDialogMsg_NoFurtherReview      = ""
+g_strInfoDialogMsg_LoginSuccess             = ""
+g_strQuestionDialogMsg_Logout               = ""
+g_strInfoDialogMsg_LoginFailure             = ""
+g_strQuestionDialogMsg_Disconnected         = ""
+g_strInfoDialogMsg_NotSyncYet               = ""
+g_strErrorDialogMsg_IncompatibleDB          = ""
+g_strQuestionDialogMsg_NullDLink            = "" 
+g_strQuestionDialogMsg_BrokenCloudDB        = ""
+g_strInfoDialogMsg_AboutAppId               = ""
+g_strInfoDialogMsg_SyncCompleted            = ""
+g_strErrorDialogMsg_VerificationFailed      = ""
 
 #Temporary global
 g_strTmpNameTxt             = ""
@@ -91,6 +114,7 @@ g_iTmpPrevCardType          = -1
 g_bSwitchContinueNewWords   = True
 g_iTmpCntStudiedNewWords    = 0
 g_iTmpCntStudiedOldWords    = 0 # It can be over than real total of old words.
+g_iTmpSyncState             = -2
 
 # Functions
 def GetOS() -> str:
@@ -129,6 +153,78 @@ def FilterForExcelNoneValue(strInput: Union[str, None]) -> str:
         return ""
     return strInput
 
+def GetFolderSize(strFolder: str) -> int:
+    total_size = 0
+    for path, dirs, files in os.walk(strFolder):
+        for file in files:
+            file_path = os.path.join(path, file)
+            total_size += os.path.getsize(file_path)
+    return total_size
+
+class AutoPlayThread(Thread):
+    def __init__(self, strHtmlText):
+        super(AutoPlayThread, self).__init__()
+        self._strHtmlText = strHtmlText
+    
+    def run(self):
+        try:
+            soup = BeautifulSoup(self._strHtmlText, 'html.parser')
+            lsAudioTags = soup.find_all('audio')
+            for eachAudioTag in lsAudioTags:
+                if eachAudioTag.has_attr('autoplay'):
+                    src = eachAudioTag['src']
+                    filedir = ""
+                    if src.startswith("http://") or src.startswith("https://"):
+                        #Web sound
+                        response = requests.get(src, stream = True)
+                        
+                        print("written before")
+                        with open(os.path.join(g_strDataPath,"TmpMusic.snd_"), "wb") as f:
+                            for chunk in response.iter_content(chunk_size=1024*1024):
+                                if chunk:
+                                    f.write(chunk)
+                        print("written suc")
+                        filedir = os.path.join(g_strDataPath,"TmpMusic.snd_")
+                    else:
+                        #Local sound
+                        filedir = src
+                    if GetOS() == "Android":
+                        from android.media import AudioManager, SoundPool
+                        soundPool = SoundPool(5, AudioManager.STREAM_MUSIC, 0)
+                        soundId = soundPool.load(filedir, 1)
+                        
+                        while True:
+                            time.sleep(0.1)
+                            if soundPool.play(soundId, 1, 1, 1, 0, 1) != 0:
+                                break
+                        
+                        '''
+                        class OnLoadCompleteListener(SoundPool.OnLoadCompleteListener):
+                            def __init__(self, callback):
+                                self.callback = callback
+                            def onLoadComplete(self, soundPool, sampleId, status):
+                                self.callback(soundPool, sampleId, status)
+                                #soundPool.play(sampleId, 1, 1, 1, 0, 1.0)
+                        onLoadCompleteListener = OnLoadCompleteListener(lambda soundPool, sampleId, status: soundPool.play(sampleId, 1, 1, 1, 0, 1.0))
+                        soundPool.setOnLoadCompleteListener(onLoadCompleteListener)
+                        '''
+                        #time.sleep(0.3)
+                        #soundPool.play(soundId, 1, 1, 1, 0, 1)
+                    else:
+                        sound = AudioSegment.from_file(filedir)  #Auto detect format
+                        play(sound)
+        except Exception as e:
+            print(e)
+            return
+    def kill(self):
+        try:
+            self._stop()
+        except Exception:
+            return
+
+autoPlayThread = AutoPlayThread("")
+autoPlayThread.setDaemon(True)
+
 class wordgets(toga.App):
     #Hide menu bar
     def _create_impl(self):
@@ -137,9 +233,11 @@ class wordgets(toga.App):
         return factory_app(interface=self)
 
     def startup(self):
-        global g_strRunPath, g_strLangPath, g_strDBPath, g_strConfigPath, g_strCardsPath, g_strWordlistsPath, g_strDataPath
+        global g_strRunPath, g_strLangPath, g_strDBPath, g_strConfigPath, g_strCardsPath, g_strWordlistsPath, g_strDataPath, g_strAppId, g_strAccessToken, g_strUsername
+
         g_strRunPath        = self.paths.app.absolute()
         g_strDataPath       = self.paths.data.absolute()
+
         g_strLangPath       = os.path.join(g_strRunPath, "resources/languages.json")
         g_strDBPath         = os.path.join(g_strDataPath, "wordgets_stat.db")
         g_strConfigPath     = os.path.join(g_strDataPath, "configuration.json")
@@ -168,12 +266,16 @@ class wordgets(toga.App):
         # Index body
         self.boxIndexBody = toga.Box(style=Pack(direction = COLUMN, flex = 1))
         boxIndexBody_Row1 = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
-        self.cboCurWordList_boxIndexBody = toga.Selection(style = Pack(flex = 1))
+        self.cboCurWordList_boxIndexBody = toga.Selection(style = Pack(width = 150))
         self.chkReviewOnly_boxIndexBody = toga.Switch("", style= Pack(background_color = TRANSPARENT), on_change = self.cbChangeChkReviewOnly)
+        self.btnSync_boxIndexBody = toga.Button("", style = Pack(width = 150), on_press = self.cbSyncDBToCloud)
+        
         boxIndexBody_Row1.add(
             self.cboCurWordList_boxIndexBody,
-            self.chkReviewOnly_boxIndexBody
+            self.chkReviewOnly_boxIndexBody,
+            self.btnSync_boxIndexBody
         )
+        
         boxIndexBody_Row2 = toga.Box(style= Pack(direction = ROW))
         self.lblLearningProgressItem_boxIndexBody = toga.Label("", style = Pack(background_color = TRANSPARENT))
         self.lblLearningProgressValue_boxIndexBody = toga.Label("", style = Pack(background_color = TRANSPARENT))
@@ -182,18 +284,26 @@ class wordgets(toga.App):
             self.lblLearningProgressValue_boxIndexBody
         )
         boxIndexBody_Row3 = toga.Box(style= Pack(direction = ROW, alignment = CENTER))
-        boxIndexBody_Row3Hidden = toga.Box(style=Pack(direction = COLUMN))
-        btnVoidForRemainRow3_boxIndexBody = toga.Button("",style=Pack(visibility = HIDDEN, width = 1))
-        boxIndexBody_Row3Hidden.add(
-            btnVoidForRemainRow3_boxIndexBody
+
+        btnHiddenForAlignment_Row3 = toga.Button("", style = Pack(width = 1, padding_top = 5, padding_bottom = 5, visibility = HIDDEN))
+        self.boxIndexBody_Row3Hidden = toga.Box(style=Pack(direction = ROW,alignment = CENTER))
+        
+        lblDelete_boxIndexBody = toga.Label("🗑️", style = Pack( background_color = TRANSPARENT))
+        self.lblDeleteTip_boxIndexBody = toga.Label("",style = Pack( background_color = TRANSPARENT))
+        self.boxIndexBody_Row3Hidden.add(
+            lblDelete_boxIndexBody,
+            self.lblDeleteTip_boxIndexBody
         )
+        self.boxIndexBody_Row3Hidden.style.update(visibility = VISIBLE)
+
         self.boxIndexBody_Row3Blank = toga.Box(style=Pack(direction = COLUMN, flex = 1))
         boxIndexBody_Row3.add(
-            boxIndexBody_Row3Hidden,
+            btnHiddenForAlignment_Row3,
+            self.boxIndexBody_Row3Hidden,
             self.boxIndexBody_Row3Blank
         )
         self.wbWord_boxIndexBody = toga.WebView(style = Pack(direction = COLUMN, flex = 1))
-
+        
         boxIndexBody_Row5Border = toga.Box(style=Pack(direction = ROW))
         boxIndexBody_Row5Hidden = toga.Box(style=Pack(direction = COLUMN))
         btnVoidForRemainRow5_boxIndexBody = toga.Button("",style=Pack(visibility = HIDDEN, width = 1)) #If not, the box will not appear
@@ -222,14 +332,17 @@ class wordgets(toga.App):
         self.btnStrange = toga.Button("", style = Pack(flex = 1, background_color = g_clrStrange))
         self.btnVague   = toga.Button("", style = Pack(flex = 1, background_color = g_clrVague))
         self.btnFamiliar= toga.Button("", style = Pack(flex = 1, background_color = g_clrFamiliar))
-        self.btnDelete  = toga.Button("🗑️", style = Pack(flex = 1, background_color = g_clrDelete))
+        #self.btnDelete  = toga.Button("🗑️", style = Pack(flex = 1, background_color = g_clrDelete))
+        self. sldDelete = toga.Slider(style = Pack(flex = 1, background_color = TRANSPARENT, height = 25), value = 0, tick_count = None,
+                              on_release= self.cbSldDeleteOnRelease
+                              )
         self.btnShowBack= toga.Button("", style = Pack(flex = 1))
 
         self.btnShowBack.on_press = self.cbShowBack
         self.btnStrange.on_press = partial(self.cbNextCard, 0)
         self.btnVague.on_press = partial(self.cbNextCard, 2)
         self.btnFamiliar.on_press = partial(self.cbNextCard, 4)
-        self.btnDelete.on_press = self.cbNoFurtherReviewThisWord
+        #self.btnDelete.on_press = self.cbNoFurtherReviewThisWord
 
         # Settngs body
         self.boxSettingsBody = toga.Box(style = Pack(direction = COLUMN, flex = 1))
@@ -254,15 +367,58 @@ class wordgets(toga.App):
             boxSettingsBody_Row1Col1,
             boxSettingsBody_Row1Col2
         )
+
+        boxSettingsBody_Row2                    = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
+        boxSettingsBody_Row2Col1                = toga.Box(style = Pack(direction = ROW, width = 150))
+        self.lblCloudSvc_boxSettingsBody        = toga.Label("", style = Pack(background_color = TRANSPARENT))
+        boxSettingsBody_Row2Col1.add(
+            self.lblCloudSvc_boxSettingsBody
+        )
+
+        boxSettingsBody_Row2Col2 = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
+        self.btnLogin_Row2Col2 = toga.Button("", style = Pack(background_color = TRANSPARENT), on_press = self.cbLoginCloudSvc)
+        self.btnLogout_Row2Col2 = toga.Button("", style = Pack(background_color = TRANSPARENT), on_press = self.cbLogoutAccount)
+        self.lblLoginState_Row2Col2 = toga.Label("", style = Pack(background_color = TRANSPARENT))
+        boxSettingsBody_Row2Col2.add(
+            self.btnLogin_Row2Col2,
+            self.btnLogout_Row2Col2,
+            self.lblLoginState_Row2Col2
+        )
         
+        boxSettingsBody_Row2.add(
+            boxSettingsBody_Row2Col1,
+            boxSettingsBody_Row2Col2
+        )
+
+        boxSettingsBody_Row3                    = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
+        boxSettingsBody_Row3Col1                = toga.Box(style = Pack(direction = ROW, width = 150))
+        self.lblClearCache_boxSettingsBody      = toga.Label("", style = Pack(background_color = TRANSPARENT))
+        boxSettingsBody_Row3Col1.add(
+            self.lblClearCache_boxSettingsBody
+        )
+
+        boxSettingsBody_Row3Col2                = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
+        self.btnClearCache_Row3Col2             = toga.Button("", style = Pack(background_color = TRANSPARENT), on_press = self.cbClearCache)
+        self.lblCacheSize_Row3Col2              = toga.Label("")
+        boxSettingsBody_Row3Col2.add(
+            self.btnClearCache_Row3Col2,
+            self.lblCacheSize_Row3Col2
+        )
+        boxSettingsBody_Row3.add(
+            boxSettingsBody_Row3Col1,
+            boxSettingsBody_Row3Col2
+        )
+
         self.boxSettingsBody.add(
-            boxSettingsBody_Row1
+            boxSettingsBody_Row1,
+            boxSettingsBody_Row2,
+            boxSettingsBody_Row3
         )
         
         # Library body
         self.boxLibraryBody = toga.Box(style = Pack(direction = COLUMN, flex = 1))
         boxLibraryBodyRow1 = toga.Box(style = Pack(direction = ROW, flex = 1))
-        boxLibraryBodyRow1Col1 = toga.Box(style = Pack(direction = COLUMN, width = 150))
+        boxLibraryBodyRow1Col1 = toga.Box(style = Pack(direction = COLUMN, width = 75))
         self.lblCards_boxLibraryBody = toga.Label("", style = Pack(background_color = TRANSPARENT))
         self.btnAddACard_boxLibraryBody = toga.Button("➕", style = Pack(flex = 1), on_press = self.cbAddACardOnPress)
         boxLibraryBodyRow1Col1.add(
@@ -278,7 +434,7 @@ class wordgets(toga.App):
         )
         
         boxLibraryBodyRow2 = toga.Box(style = Pack(direction = ROW, flex = 1))
-        boxLibraryBodyRow2Col1 = toga.Box(style = Pack(direction = COLUMN, width = 150))
+        boxLibraryBodyRow2Col1 = toga.Box(style = Pack(direction = COLUMN, width = 75))
         self.lblWordLists_boxLibraryBody = toga.Label("", style = Pack(background_color = TRANSPARENT))
         self.btnAddAWordList_boxLibraryBody = toga.Button("➕", style = Pack(flex = 1), on_press = self.cbAddAWordListdOnPress)
         boxLibraryBodyRow2Col1.add(
@@ -294,10 +450,10 @@ class wordgets(toga.App):
         )
         self.btnApplyChanges_boxLibraryBody = toga.Button("", on_press = self.cbApplyChangesOnPress)
         self.boxLibraryBody.add(
+            self.btnApplyChanges_boxLibraryBody,
             boxLibraryBodyRow1,
-            boxLibraryBodyRow2,
-            self.btnApplyChanges_boxLibraryBody
-        )
+            boxLibraryBodyRow2
+        )   #button will disappear on android if it is on the bottom
 
         # Body of editing a card   
         self.boxEditCardBody = toga.Box(style = Pack(direction = COLUMN, flex = 1))
@@ -387,6 +543,55 @@ class wordgets(toga.App):
             self.btnSaveWordList_boxEditWordListBody
         )
 
+        # Windows of Cloud Services. Begin------------------------------------------------------------------------------------------------------------------
+        ## Procedure 1: Select one cloud storage service provider
+        self.boxCloudSvcP1 = toga.Box(style = Pack(direction = COLUMN))
+        self.lblCloudSvcP1Title_boxCloudSvcP1 = toga.Label("", style = Pack(font_weight = BOLD)) 
+        self.btnCloudSvcP1_BaiduNetdisk_boxCloudSvcP1 = toga.Button("", style = Pack(flex = 1), on_press = self.cbSetCloudSvc)
+        self.boxCloudSvcP1.add(
+            self.lblCloudSvcP1Title_boxCloudSvcP1,
+            self.btnCloudSvcP1_BaiduNetdisk_boxCloudSvcP1
+        )
+
+        ## Procedure 2: Enter AppId
+        self.boxCloudSvcP2 = toga.Box(style = Pack(direction = COLUMN))
+        self.lblCloudSvcP2Title_boxCloudSvcP2 = toga.Label("", style = Pack(font_weight = BOLD))
+        self.btnCloudSvcP2WhatIsThis_boxCloudSvcP2 = toga.Button("", on_press = lambda: self.main_window.info_dialog(g_strInfoDialogTitle, g_strInfoDialogMsg_AboutAppId))
+        self.txtCloudSvcP2AppId_boxCloudSvcP2 = toga.TextInput(placeholder="AppKey")
+        self.btnCloudSvcP2Next_boxCloudSvcP2 = toga.Button("", on_press = self.cbLoginAccount)
+        self.boxCloudSvcP2.add(
+            self.lblCloudSvcP2Title_boxCloudSvcP2,
+            self.btnCloudSvcP2WhatIsThis_boxCloudSvcP2,
+            self.txtCloudSvcP2AppId_boxCloudSvcP2,
+            self.btnCloudSvcP2Next_boxCloudSvcP2
+        )
+
+        ## Procedure 3: Login account
+        self.boxCloudSvcP3 = toga.Box(style = Pack(direction = COLUMN, flex = 1))
+        boxCloudSvcP3_row1 = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
+        self.lblCloudSvcP3Title_boxCloudSvcP3 = toga.Label("", style = Pack(font_weight = BOLD, flex = 1))
+        boxCloudSvcP3_row1.add(
+            self.lblCloudSvcP3Title_boxCloudSvcP3
+        )
+
+        self.wbCloudSvcP3_LoginAccount = toga.WebView(style = Pack(direction = COLUMN, flex = 1, height = 600)) #A bug. Cannot automatically adjust height
+
+        boxManualVerification_boxCloudSvcP3 = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
+        self.btnManualVerification = toga.Button("", style = Pack(direction = COLUMN, flex = 1), on_press = self.cbManualVerificationOnPress)
+        boxManualVerification_boxCloudSvcP3.add(
+            self.btnManualVerification
+        )
+        
+        self.boxCloudSvcP3.add(
+            boxCloudSvcP3_row1,
+            boxManualVerification_boxCloudSvcP3,
+            self.wbCloudSvcP3_LoginAccount
+        )
+
+        self.wbCloudSvcP3_LoginAccount.set_content("NO_CONTENT", g_EmptyHtml)
+
+        # Windows of Cloud Services. End--------------------------------------------------------------------------------------------------------------------
+
         # Read language file
         self.m_dictLanguages = {}
         with open(g_strLangPath, "r") as f:
@@ -405,6 +610,9 @@ class wordgets(toga.App):
                 g_strDefaultLang = dictConfig['lang']
                 g_strOpenedWordListName = dictConfig['cur_wordlist']
                 g_bOnlyReview = dictConfig['only_review']
+                g_strAppId = dictConfig["appid"]
+                g_strAccessToken =dictConfig["access_token"]
+                g_strUsername =dictConfig["username"]
                 if g_bIsMobile == False:
                     t_iX = dictConfig['X']
                     t_iY = dictConfig['Y']
@@ -448,8 +656,24 @@ class wordgets(toga.App):
 
         self.m_lsRememberSeq = []
         bAllFilesAreValid = self.ValidateFiles()
+        
+        self.boxIndexBody_Row3Hidden.style.update(visibility = HIDDEN)
+
+        if g_strUsername != "":
+            self.btnSync_boxIndexBody.enabled = True
+            # A bug. On Android, async startup will not display anything and asyncio.run will cause confliction and nest_asyncio will raise NotImplementedError
+            # Indirect method: use a widget callback to execute async function. This method is not suitable for Windows as it will cause exception!!
+            if GetOS() == 'Android':
+                chkTmp = toga.Switch("114514", value = False)
+                chkTmp.on_change = self.SyncDBToLocal
+                #asyncio.sleep(1)
+                chkTmp.value = True
+            else:
+                asyncio.run(self.SyncDBToLocal(None))
+        else:
+            self.btnSync_boxIndexBody.enabled = False
+
         if bAllFilesAreValid == True and os.path.exists(g_strDBPath) == True: # Not support displaying an error dialog when no operation on the just executed program. If so, re-config is required.
-            
             lsValidWordlists = []
             conn = sqlite3.connect(g_strDBPath)
             cursor = conn.cursor()
@@ -473,7 +697,6 @@ class wordgets(toga.App):
             
             self.GenerateNewWordsSeqOfCurrentWordList()
             self.cbNextCard(-1, None)
-        
 
     # Callback functions
     def cbBtnIndexOnPress(self, widget):
@@ -493,9 +716,13 @@ class wordgets(toga.App):
         self.btnIndex_boxNavigateBar.style.update(font_weight = NORMAL, background_color = g_clrBg, color = 'black')
         self.btnSettings_boxNavigateBar.style.update(font_weight = BOLD, background_color = g_clrPressedNavigationBtn, color = g_clrOpenedTabText)
         self.btnLibrary_boxNavigateBar.style.update(font_weight = NORMAL, background_color = g_clrBg, color = 'black')
+
         self.boxBody.add(
             self.boxSettingsBody
         )
+
+        self.lblCacheSize_Row3Col2.text = str(round(GetFolderSize(os.path.join(g_strDataPath, "Cache")) / 1024 / 1024, 2))+ " MB"
+        self.ChangeAccountBtnState()
         self.SaveConfiguration()
 
     def cbBtnLibraryOnPress(self, widget):
@@ -765,6 +992,9 @@ class wordgets(toga.App):
             self.txtCardBackBackend_boxEditCardBody.value = self.m_dictTmpCards[strCardName]['back']['backend']
         global g_bTmpEditNewCard
         g_bTmpEditNewCard = False
+        while len(self.boxBody.children) != 0: #If once, it will not display completely on windows
+            self.boxBody.remove(self.boxBody.children[0])
+        self.boxBody.add(self.boxEditCardBody)
         while len(self.boxBody.children) != 0:
             self.boxBody.remove(self.boxBody.children[0])
         self.boxBody.add(self.boxEditCardBody)
@@ -810,7 +1040,10 @@ class wordgets(toga.App):
         self.txtWordListXlsx_boxEditWordListBody.value = self.m_dictTmpWordLists[strWordListName]['FilePath']
         global g_bTmpEditNewWordList
         g_bTmpEditNewWordList = False
-        while len(self.boxBody.children) != 0:
+        while len(self.boxBody.children) != 0: #If once, it will not display completely on windows
+            self.boxBody.remove(self.boxBody.children[0])
+        self.boxBody.add(self.boxEditWordListBody)
+        while len(self.boxBody.children) != 0: 
             self.boxBody.remove(self.boxBody.children[0])
         self.boxBody.add(self.boxEditWordListBody)
     
@@ -953,22 +1186,34 @@ class wordgets(toga.App):
             result = cursor.fetchall()
             if len(result) == 0:
                 continue
-        lsValidWordlists.append(eachWordlist)
+            lsValidWordlists.append(eachWordlist)
         conn.commit()
         conn.close()
         global g_strOpenedWordListName
         if g_strOpenedWordListName not in lsValidWordlists:
             g_strOpenedWordListName = lsValidWordlists[0]
-
+        
         self.cboCurWordList_boxIndexBody.items = lsValidWordlists
         self.cboCurWordList_boxIndexBody.value = g_strOpenedWordListName
+        
+        if g_strUsername != "":
+            await self.SyncDBToLocal(None)
 
         self.GenerateNewWordsSeqOfCurrentWordList()
         self.cbNextCard(-1, None)
 
         self.cbBtnIndexOnPress(None)
 
+    def cbSldDeleteOnRelease(self, widget):
+        if widget.value > 0.95:
+            self.cbNoFurtherReviewThisWord(None)
+            widget.value = 0
+        else:
+            widget.value = 0
+
     def cbNextCard(self, iQuality, widget): # iQuality = -1 if there is no need to update record
+        global autoPlayThread
+        autoPlayThread.kill()
         self.ChangeWordLearningBtns(0)
         conn = sqlite3.connect(g_strDBPath)
         cursor = conn.cursor()
@@ -1185,6 +1430,9 @@ class wordgets(toga.App):
                 dictCardTypeThisCardUses['single-sided']['backend'],
                 dicDynVariables
             )
+            autoPlayThread = AutoPlayThread(strRenderedHTML)
+            autoPlayThread.setDaemon(True)
+            autoPlayThread.start()
             self.wbWord_boxIndexBody.set_content("wordgets", strRenderedHTML)
 
             #Change button
@@ -1201,12 +1449,17 @@ class wordgets(toga.App):
                 dictCardTypeThisCardUses['front']['backend'],
                 dicDynVariables
             )
+            autoPlayThread = AutoPlayThread(strRenderedHTML)
+            autoPlayThread.setDaemon(True)
+            autoPlayThread.start()
             self.wbWord_boxIndexBody.set_content("wordgets", strRenderedHTML)
 
             #Change button
             self.ChangeWordLearningBtns(1)
 
     def cbShowBack(self, widget):
+        global autoPlayThread
+        autoPlayThread.kill()
         self.ChangeWordLearningBtns(0)
         dictCardTypeThisCardUses = g_dictCards[g_dictWordLists[g_strOpenedWordListName]['CardType'+str(g_iTmpPrevCardType)]]
 
@@ -1220,7 +1473,9 @@ class wordgets(toga.App):
             dictCardTypeThisCardUses['back']['backend'],
             dicDynVariables
         )
-
+        autoPlayThread = AutoPlayThread(strRenderedHTML)
+        autoPlayThread.setDaemon(True)
+        autoPlayThread.start()
         self.wbWord_boxIndexBody.set_content("wordgets", strRenderedHTML)
 
         self.ChangeWordLearningBtns(2)
@@ -1242,17 +1497,480 @@ class wordgets(toga.App):
         self.cbNextCard(-1, None)
         self.SaveConfiguration()
 
-    async def cbNoFurtherReviewThisWord(self, widget):
-        if await self.main_window.question_dialog(title = g_strQuestionDialogTitle, message = g_strQuestionDialogMsg_NoFurtherReview):
-            self.cbNextCard(5, None)
-        else:
-            return
+    def cbNoFurtherReviewThisWord(self, widget): # async
+        self.cbNextCard(5, None)
+        #if await self.main_window.question_dialog(title = g_strQuestionDialogTitle, message = g_strQuestionDialogMsg_NoFurtherReview):
+        #    self.cbNextCard(5, None)
+        #else:
+        #    return
     
     def cbChangeChkReviewOnly(self, widget):
         global g_bOnlyReview
         g_bOnlyReview = widget.value
         if g_bOnlyReview == False:
             self.cbNextCard(-1, None)
+    
+    def cbClearCache(self, widget):
+        shutil.rmtree(os.path.join(g_strDataPath,"Cache"), True)
+        self.lblCacheSize_Row3Col2.text = str(round(GetFolderSize(os.path.join(g_strDataPath, "Cache")) / 1024 / 1024, 2)) + " MB"
+
+    # Online services---------------------------------------------------------------------------------------------------------------------------------------
+    def cbLoginCloudSvc(self, widget):
+        while len(self.boxBody.children) != 0:
+            self.boxBody.remove(self.boxBody.children[0])
+        self.boxBody.add(
+            self.boxCloudSvcP1
+        )
+    
+    def cbSetCloudSvc(self, widget):
+        while len(self.boxBody.children) != 0:
+            self.boxBody.remove(self.boxBody.children[0])
+        self.txtCloudSvcP2AppId_boxCloudSvcP2.value = g_strAppId
+        self.boxBody.add(
+            self.boxCloudSvcP2
+        )
+    ''' 
+    def NewThreadToDetectJump(self):   #unstable 
+        while True:
+            if self.boxCloudSvcP3 not in self.boxBody.children:
+                return
+            if self.wbCloudSvcP3_LoginAccount.url.find("openapi.baidu.com/oauth/2.0/login_success") >= 0:
+                url = self.wbCloudSvcP3_LoginAccount.url
+                query_args = urllib.parse.parse_qs(url.split("#")[1])
+                access_token = query_args['access_token'][0]
+                #self.main_window.info_dialog(g_strInfoDialogTitle, g_strInfoDialogMsg_LoginSuccess)
+                #Save AppID and access_token
+                global g_strAppId, g_strAccessToken, g_strUsername
+                g_strAppId = self.m_strTmpAppId
+                g_strAccessToken = access_token
+                url = f"https://pan.baidu.com/rest/2.0/xpan/nas?access_token={access_token}&method=uinfo"
+                payload = {}
+                response = requests.request("GET", url, data = payload)
+                strResponse = response.text.encode('utf8').decode()
+                dictResponse = eval(strResponse)
+                username = dictResponse['baidu_name']
+                g_strUsername = username
+
+                self.lblLoginState_Row2Col2.text                = "".join(self.m_dictLanguages[g_strDefaultLang]["STR_LBL_LOGINSTATE_TEXT_LOGIN"] % username)  #Crash when using gloabal variable
+
+                self.btnSync_boxIndexBody.enabled = True
+
+                while len(self.boxBody.children) != 0:
+                    self.boxBody.remove(self.boxBody.children[0])
+                
+                asyncio.run(self.SyncDBToLocal())
+                self.SaveConfiguration()
+                self.GenerateNewWordsSeqOfCurrentWordList() # It is necessary.
+                #self.cbBtnSettingsOnPress(None)
+                return
+            time.sleep(0.5)
+        '''
+    
+    async def cbLoginOnWebviewLoad(self, widget):  
+        if widget.url.find("openapi.baidu.com/oauth/2.0/login_success") >= 0:
+            url = widget.url
+            query_args = urllib.parse.parse_qs(url.split("#")[1])
+            access_token = query_args['access_token'][0]
+            #self.main_window.info_dialog(g_strInfoDialogTitle, g_strInfoDialogMsg_LoginSuccess)
+            #Save AppID and access_token
+            global g_strAppId, g_strAccessToken, g_strUsername
+            g_strAppId = self.m_strTmpAppId
+            g_strAccessToken = access_token
+            url = f"https://pan.baidu.com/rest/2.0/xpan/nas?access_token={access_token}&method=uinfo"
+            payload = {}
+            response = requests.request("GET", url, data = payload)
+            strResponse = response.text.encode('utf8').decode()
+            dictResponse = eval(strResponse)
+            username = dictResponse['baidu_name']
+            g_strUsername = username
+
+            self.lblLoginState_Row2Col2.text                = "".join(self.m_dictLanguages[g_strDefaultLang]["STR_LBL_LOGINSTATE_TEXT_LOGIN"] % username)  #Crash when using gloabal variable
+
+            self.btnSync_boxIndexBody.enabled = True
+
+            #while len(self.boxBody.children) != 0:
+            #    self.boxBody.remove(self.boxBody.children[0])
+
+            await self.SyncDBToLocal()
+            self.SaveConfiguration()
+            self.GenerateNewWordsSeqOfCurrentWordList() # It is necessary.
+            self.cbBtnSettingsOnPress(None)
+            
+    async def cbManualVerificationOnPress(self, widget):
+        if self.wbCloudSvcP3_LoginAccount.url.find("openapi.baidu.com/oauth/2.0/login_success") >= 0:
+            url = self.wbCloudSvcP3_LoginAccount.url
+            query_args = urllib.parse.parse_qs(url.split("#")[1])
+            access_token = query_args['access_token'][0]
+            global g_strAppId, g_strAccessToken, g_strUsername
+            g_strAppId = self.m_strTmpAppId
+            g_strAccessToken = access_token
+            url = f"https://pan.baidu.com/rest/2.0/xpan/nas?access_token={access_token}&method=uinfo"
+            payload = {}
+            response = requests.request("GET", url, data = payload)
+            strResponse = response.text.encode('utf8').decode()
+            dictResponse = eval(strResponse)
+            username = dictResponse['baidu_name']
+            g_strUsername = username
+
+            self.lblLoginState_Row2Col2.text                = "".join(self.m_dictLanguages[g_strDefaultLang]["STR_LBL_LOGINSTATE_TEXT_LOGIN"] % username)  #Crash when using gloabal variable
+            self.btnSync_boxIndexBody.enabled = True
+            
+            await self.SyncDBToLocal()
+            self.SaveConfiguration()
+            self.GenerateNewWordsSeqOfCurrentWordList() # It is necessary.
+            self.cbBtnSettingsOnPress(None)
+        else:
+            self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_VerificationFailed)
+
+    def cbLoginAccount(self, widget):
+        while len(self.boxBody.children) != 0:
+            self.boxBody.remove(self.boxBody.children[0])
+        self.m_strTmpAppId = self.txtCloudSvcP2AppId_boxCloudSvcP2.value
+        self.txtCloudSvcP2AppId_boxCloudSvcP2.value = ""
+        self.boxBody.add(
+            self.boxCloudSvcP3
+        )
+        url = f"https://openapi.baidu.com/oauth/2.0/authorize?response_type=token&client_id={self.m_strTmpAppId}&redirect_uri=oob&scope=basic,netdisk&display=mobile"
+
+        self.wbCloudSvcP3_LoginAccount.on_webview_load = self.cbLoginOnWebviewLoad
+        self.wbCloudSvcP3_LoginAccount.url = url
+        
+        #thread = Thread(target=self.NewThreadToDetectJump)
+        #thread.start()
+        #while True:
+        #    if g_bTmpLoginSync == True:
+        #        asyncio.run(self.SyncDBToLocal())
+        #        break
+        #    time.sleep(0.5)
+    
+    async def cbLogoutAccount(self, widget):
+        global g_strAccessToken, g_strUsername
+        if await self.main_window.question_dialog(title = g_strQuestionDialogTitle, message = g_strQuestionDialogMsg_Logout):
+            g_strAccessToken = ""
+            g_strUsername = ""
+
+            self.lblLoginState_Row2Col2.text                = self.m_dictLanguages[g_strDefaultLang]["STR_LBL_LOGINSTATE_TEXT_LOGOUT"]
+            self.btnSync_boxIndexBody.enabled = False
+            self.cbBtnSettingsOnPress(None)
+        else:
+            return
+
+    def ChangeAccountBtnState(self):
+        if g_strUsername != "":
+            self.btnLogin_Row2Col2.text                         = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_ANOTHERLOGIN_TEXT']
+            self.btnLogout_Row2Col2.style.update(visibility = VISIBLE)
+        else:
+            self.btnLogin_Row2Col2.text                         = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_LOGIN_TEXT']
+            self.btnLogout_Row2Col2.style.update(visibility = HIDDEN)
+
+    def GetCloudDBFileID(self):
+        url = f"https://pan.baidu.com/rest/2.0/xpan/file?method=list&dir=/wordgets_sync/&order=time&start=0&limit=100&web=web&folder=0&access_token={g_strAccessToken}&desc=1"
+        payload = {}
+        files = {}
+        headers = {
+            'User-Agent': 'pan.baidu.com'
+        }
+        response = requests.request("GET", url, headers=headers, data = payload, files = files)
+        strResponse = response.text.encode('utf8').decode().replace("\\/","/")
+        dictResponse = eval(strResponse)
+        errno = dictResponse['errno']
+        if errno == 0: #Folder exists
+            for eachFile in dictResponse['list']:
+                if eachFile['server_filename'] == 'wordgets_stat.db':
+                    return eachFile['fs_id']   # FileID
+            return 0
+        elif errno == -9: #Folder does not exist
+            url = f"https://pan.baidu.com/rest/2.0/xpan/file?method=create&access_token={g_strAccessToken}"
+            payload = {
+                'path': '/wordgets_sync',
+                'rtype': '0',
+                'isdir': '1'
+            }
+            files = [
+            ]
+            headers = {
+            }
+            response = requests.request("POST", url, headers=headers, data = payload, files = files)
+            return 0
+        else: #Include: Access_token overdue; over-frequent request
+            return -1
+
+    def DownloadDBFromSyncAndMergeRecord(self, iFileID):
+        #Query file information
+        url = f"http://pan.baidu.com/rest/2.0/xpan/multimedia?method=filemetas&access_token={g_strAccessToken}&fsids=[{iFileID}]&thumb=1&dlink=1&extra=1"
+
+        payload = {}
+        files = {}
+        headers = {
+            'User-Agent': 'pan.baidu.com'
+        }
+
+        response = requests.request("GET", url, headers=headers, data = payload, files = files)
+
+        strResponse = response.text.encode('utf8').decode().replace("\\/","/")
+
+        dictResponse = eval(strResponse)
+        errno = dictResponse['errno']
+        
+        if errno != 0:
+            return -1
+        dlink = dictResponse['list'][0]['dlink']
+        #md5 = dictResponse['list'][0]['md5']
+
+        #Download file
+        url = dlink + f"&access_token={g_strAccessToken}"
+        payload = {}
+
+        files = {}
+        headers = {
+            'User-Agent': 'pan.baidu.com'
+        }
+
+        response = requests.request("GET", url, headers=headers, data = payload, files = files)
+        file_binary = response.content   # not the so-called .text on the website
+        with open(g_strDBPath+"_tmp", "wb") as f: 
+            f.write(file_binary)
+
+        # Baidu Netdisk uses different md5 policy. Directly try to load database
+        try:
+            if os.path.exists(g_strDBPath) == False:
+                os.rename(g_strDBPath+"_tmp", g_strDBPath)
+                return 1
+            conn1 = sqlite3.connect(g_strDBPath)
+            cursor1 = conn1.cursor()
+            cursor1.execute("SELECT * FROM statistics ORDER BY wordlist, word_no, card_type")
+            data1 = cursor1.fetchall()
+            conn1.close()
+
+            conn2 = sqlite3.connect(g_strDBPath+"_tmp")
+            cursor2 = conn2.cursor()
+            cursor2.execute("SELECT * FROM statistics ORDER BY wordlist, word_no, card_type")
+            data2 = cursor2.fetchall()
+            conn2.close()
+
+            if len(data1) != len(data2):
+                return 0 
+            bOneToOneCorrespondence = True
+            for row1, row2 in zip(data1, data2):
+                if row1[:3] != row2[:3]:
+                    bOneToOneCorrespondence = False
+                    break
+            if bOneToOneCorrespondence == False:
+                return 0
+            
+            # Update according date
+            conn1 = sqlite3.connect(g_strDBPath)
+            cursor1 = conn1.cursor()
+            for i in range(len(data2)):
+                wordlist = data2[i][0]
+                word_no = data2[i][1]
+                card_type = data2[i][2]
+                review_date = data2[i][3]
+                easiness = data2[i][4]
+                interval = data2[i][5]
+                repetitions = data2[i][6]
+                if review_date == None or review_date == "":
+                    continue
+
+                sql_query = '''
+                UPDATE statistics
+                SET review_date = ?, easiness = ?, interval = ?, repetitions = ?
+                WHERE (wordlist = ? AND word_no = ? AND card_type = ?)
+                AND (review_date <= ? OR review_date IS NULL)
+                '''
+                data = (review_date, easiness, interval, repetitions, wordlist, word_no, card_type, review_date)
+                conn1.execute(sql_query, data)
+            conn1.commit()
+            conn1.close()
+
+            # Delete temporary file
+            os.remove(g_strDBPath+"_tmp")
+
+            return 1
+        except Exception:
+            return -2   #Broken downloaded file 
+
+    def UploadDBFile(self):
+        global g_iTmpSyncState
+        try:
+            #In case of non-existed folder
+            url = f"https://pan.baidu.com/rest/2.0/xpan/file?method=create&access_token={g_strAccessToken}"
+            payload = {
+                    'path': '/wordgets_sync',
+                    'rtype': '0',
+                    'isdir': '1'
+                }
+            files = [
+                ]
+            headers = {
+                }
+            response = requests.request("POST", url, headers=headers, data = payload, files = files)
+
+            #Preupload
+            url = f"http://pan.baidu.com/rest/2.0/xpan/file?method=precreate&access_token={g_strAccessToken}"
+            shutil.copy2(g_strDBPath, g_strDBPath + "_tmp")
+            lsChunks = []
+            lsMd5s =[]
+            with open(g_strDBPath + "_tmp", 'rb') as file:
+                chunk_index = 0
+                while True:
+                    chunk = file.read(4 * 1024 * 1024)    #4M/chunk
+                    if not chunk:
+                        break
+                    chunk_md5 = hashlib.md5(chunk).hexdigest()
+                    lsChunks.append(chunk)
+                    lsMd5s.append(chunk_md5)
+                    chunk_index += 1
+            
+            iDBFileSize = os.path.getsize(g_strDBPath + "_tmp")
+
+            payload = {'path': '/wordgets_sync/wordgets_stat.db_tmp',
+                'size': str(iDBFileSize),
+                'rtype': '3',
+                'isdir': '0',
+                'autoinit': '1',
+                'block_list': str(lsMd5s).replace("'","\"")
+            }
+            files = [
+            ]
+            headers = {
+            }
+
+            response = requests.request("POST", url, headers=headers, data = payload, files = files)
+            strResponse = response.text.encode('utf8').decode().replace("\\/","/")
+            
+            dictResponse = eval(strResponse)
+        
+            uploadid = dictResponse['uploadid']
+            # Upload database
+            for i in range(len(lsChunks)):
+                url = f"https://d.pcs.baidu.com/rest/2.0/pcs/superfile2?method=upload&access_token={g_strAccessToken}&path=/wordgets_sync/wordgets_stat.db_tmp&type=tmpfile&uploadid={uploadid}&partseq=" + str(i)
+                
+                payload = {}
+                files = [
+                    ('file',lsChunks[i])
+                ]
+                headers = {
+                }
+
+                response = requests.request("POST", url, headers=headers, data = payload, files = files)
+            
+            # Create / Merge
+            url = f"https://pan.baidu.com/rest/2.0/xpan/file?method=create&access_token={g_strAccessToken}"
+
+            payload = {'path': '/wordgets_sync/wordgets_stat.db_tmp',
+                'size': str(iDBFileSize),
+                'rtype': '3',
+                'isdir': '0',
+                'uploadid': uploadid,
+                'block_list':  str(lsMd5s).replace("'","\"")
+            }
+            files = [
+
+            ]
+            headers = {
+            }
+
+            response = requests.request("POST", url, headers=headers, data = payload, files = files)
+            # Overwrite cloud database
+            
+            url = f"https://pan.baidu.com/rest/2.0/xpan/file?method=filemanager&access_token={g_strAccessToken}&opera=rename"
+
+            payload = {
+                'async': '2',
+                'filelist': '[{"path":"/wordgets_sync/wordgets_stat.db_tmp","newname":"wordgets_stat.db","ondup":"overwrite"}]'
+            }
+
+            response = requests.request("POST", url, data = payload)
+
+            g_iTmpSyncState = 1
+
+            self.app.add_background_task(
+                self.ChangeSyncStateAgent
+            )
+        except Exception:
+            g_iTmpSyncState = 2
+            self.app.add_background_task(
+                self.ChangeSyncStateAgent
+            )
+        finally:
+            time.sleep(10)
+            g_iTmpSyncState = 0
+            self.app.add_background_task(
+                self.ChangeSyncStateAgent
+            )
+            
+    def ChangeSyncStateAgent(self, widget):
+        if g_iTmpSyncState == -1:
+            self.ChangeSyncBtnText(-1)
+            self.btnSync_boxIndexBody.enabled = False
+            self.btnIndex_boxNavigateBar.enabled = False
+            self.btnSettings_boxNavigateBar.enabled = False
+            self.btnLibrary_boxNavigateBar.enabled = False
+        elif g_iTmpSyncState == 0:
+            self.ChangeSyncBtnText(0)
+            self.btnSync_boxIndexBody.enabled = True
+            self.btnIndex_boxNavigateBar.enabled = True
+            self.btnSettings_boxNavigateBar.enabled = True
+            self.btnLibrary_boxNavigateBar.enabled = True
+        elif g_iTmpSyncState == 1:
+            self.ChangeSyncBtnText(1)
+        elif g_iTmpSyncState == 2:
+            self.ChangeSyncBtnText(2)
+
+
+    async def SyncDBToLocal(self, widget): #Only work on account login or launching
+        while True:
+            try:
+                iFileId = self.GetCloudDBFileID()
+                if iFileId == 0: # New account
+                    self.main_window.info_dialog(g_strInfoDialogTitle, g_strInfoDialogMsg_NotSyncYet)
+                    return
+                elif iFileId == -1: # Login failed.
+                    self.main_window.info_dialog(g_strInfoDialogTitle, g_strInfoDialogMsg_LoginFailure)
+                    global g_strAccessToken, g_strUsername
+                    g_strAccessToken = ""
+                    g_strUsername = ""
+                    self.lblLoginState_Row2Col2.text                = self.m_dictLanguages[g_strDefaultLang]["STR_LBL_LOGINSTATE_TEXT_LOGOUT"]
+
+                    self.btnSync_boxIndexBody.enabled = False
+
+                    self.cbBtnSettingsOnPress(None)
+                    return
+                iDBChangeState = self.DownloadDBFromSyncAndMergeRecord(iFileId)
+                if iDBChangeState == -1:  #Cannot get the download link
+                    if await self.main_window.question_dialog(g_strQuestionDialogTitle, g_strQuestionDialogMsg_NullDLink) == True:
+                        continue
+                    else:
+                        return
+                elif iDBChangeState == 0:  #Incompatible DB
+                    self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_IncompatibleDB)
+                    self.cbBtnLibraryOnPress(None) 
+                    return
+                elif iDBChangeState == 1: #Success
+                    
+                    self.main_window.info_dialog(g_strInfoDialogTitle, g_strInfoDialogMsg_SyncCompleted)
+                    return
+                else: #-2 File broken
+                    if await self.main_window.question_dialog(g_strQuestionDialogTitle, g_strQuestionDialogMsg_BrokenCloudDB) == True:
+                        continue
+                    else:
+                        return
+            except Exception: #Network Error
+                if await self.main_window.error_dialog(g_strErrorDialogTitle, g_strQuestionDialogMsg_Disconnected) == True:
+                    continue
+                else:
+                    return
+
+    def cbSyncDBToCloud(self, widget): # Only work on sync button on press
+        global g_iTmpSyncState
+        g_iTmpSyncState = -1
+        self.ChangeSyncStateAgent(None)
+        
+        thread = Thread(target = self.UploadDBFile)
+        thread.start()
+
+    # Online services End----------------------------------------------------------------------------------------------------------------------
 
     # Functions
     def ChangeLangAccordingToDefaultLang(self):
@@ -1280,6 +1998,10 @@ class wordgets(toga.App):
         self.lblLearningProgressItem_boxIndexBody.text      = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_LEARNINGPROGRESSITEM_TEXT']
         self.chkReviewOnly_boxIndexBody.text                = self.m_dictLanguages[g_strDefaultLang]['STR_CHK_REVIEWONLY_TEXT']
         self.btnShowBack.text                               = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_SHOWBACK_TEXT']
+        self.lblDeleteTip_boxIndexBody.text                 = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_DELETETIP_TEXT']
+        self.lblClearCache_boxSettingsBody.text             = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_CLEARCACHE_TEXT']
+        self.btnClearCache_Row3Col2.text                    = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_CLEARCACHE_TEXT']
+
         global g_strFront, g_strBack, g_strOnesided, g_strFrontend, g_strBackend, g_strFilePath, g_strCard1, g_strCard2
         g_strFront                                          = self.m_dictLanguages[g_strDefaultLang]['STR_FRONT']
         g_strBack                                           = self.m_dictLanguages[g_strDefaultLang]['STR_BACK']
@@ -1321,7 +2043,52 @@ class wordgets(toga.App):
         g_strCboReviewPolicy_item_Random                    = self.m_dictLanguages[g_strDefaultLang]['STR_CBO_REVIEWPOLICY_ITEM_RANDOM']
         g_strCboReviewPolicy_item_ReviewFirst               = self.m_dictLanguages[g_strDefaultLang]['STR_CBO_REVIEWPOLICY_ITEM_REVIEWFIRST']
         
+        # Cloud service
+        self.lblCloudSvc_boxSettingsBody.text               = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_CLOUDSVC_TEXT']
+        #self.btnLogin_Row2Col2.text                         = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_LOGIN_TEXT']
+        self.lblCloudSvcP1Title_boxCloudSvcP1.text          = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_CLOUDSVCP1TITLE_TEXT']
+        self.btnCloudSvcP1_BaiduNetdisk_boxCloudSvcP1.text  = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_CLOUDSVCP1_BAIDUNETDISK_TEXT']
+        self.lblCloudSvcP2Title_boxCloudSvcP2.text          = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_CLOUDSVCP2TITLE_TEXT']
+        self.btnCloudSvcP2WhatIsThis_boxCloudSvcP2.text     = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_CLOUDSVCP2WHATISTHIS_TEXT']
+        self.btnCloudSvcP2Next_boxCloudSvcP2.text           = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_CLOUDSVCP2NEXT_TEXT']
+        self.btnLogout_Row2Col2.text                        = self.m_dictLanguages[g_strDefaultLang]['STR_BTN_LOGOUT_TEXT']
+        self.lblCloudSvcP3Title_boxCloudSvcP3.text          = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_CLOUDSVCP3TITLE_TEXT']
+        global g_strInfoDialogMsg_LoginSuccess, g_strQuestionDialogMsg_Logout, g_strInfoDialogMsg_LoginFailure, g_strQuestionDialogMsg_Disconnected,\
+            g_strInfoDialogMsg_NotSyncYet, g_strErrorDialogMsg_IncompatibleDB, g_strQuestionDialogMsg_NullDLink, g_strQuestionDialogMsg_BrokenCloudDB,\
+            g_strInfoDialogMsg_AboutAppId, g_strInfoDialogMsg_SyncCompleted, g_strErrorDialogMsg_VerificationFailed
+        g_strInfoDialogMsg_LoginSuccess                     = self.m_dictLanguages[g_strDefaultLang]["STR_INFODIALOG_MSG_LOGINSUCCESS"]
+        g_strQuestionDialogMsg_Logout                       = self.m_dictLanguages[g_strDefaultLang]["STR_QUESTIONDIALOG_MSG_LOGOUT"]
+        if g_strUsername != "":
+            self.lblLoginState_Row2Col2.text                = self.m_dictLanguages[g_strDefaultLang]["STR_LBL_LOGINSTATE_TEXT_LOGIN"] % g_strUsername
+        else:
+            self.lblLoginState_Row2Col2.text                = self.m_dictLanguages[g_strDefaultLang]["STR_LBL_LOGINSTATE_TEXT_LOGOUT"]
+        self.ChangeAccountBtnState()
+        g_strInfoDialogMsg_LoginFailure                     = self.m_dictLanguages[g_strDefaultLang]["STR_INFODIALOG_MSG_LOGINFAILURE"]
+        g_strQuestionDialogMsg_Disconnected                 = self.m_dictLanguages[g_strDefaultLang]["STR_QUESTIONDIALOG_MSG_DISCONNECTED"]
+        g_strInfoDialogMsg_NotSyncYet                       = self.m_dictLanguages[g_strDefaultLang]["STR_INFODIALOG_MSG_NOTSYNCYET"]
+        g_strErrorDialogMsg_IncompatibleDB                  = self.m_dictLanguages[g_strDefaultLang]["STR_ERRORDIALOG_MSG_INCOMPATIBLEDB"]
+        g_strQuestionDialogMsg_NullDLink                    = self.m_dictLanguages[g_strDefaultLang]["STR_QUESTIONDIALOG_MSG_NULLDLINK"]
+        g_strQuestionDialogMsg_BrokenCloudDB                = self.m_dictLanguages[g_strDefaultLang]["STR_QUESTIONDIALOG_MSG_BROKENCLOUDDB"]
+        g_strInfoDialogMsg_AboutAppId                       = self.m_dictLanguages[g_strDefaultLang]["STR_INFODIALOG_MSG_ABOUTAPPID"]
+        self.ChangeSyncBtnText(0)
+        g_strInfoDialogMsg_SyncCompleted                    = self.m_dictLanguages[g_strDefaultLang]["STR_INFODIALOG_MSG_SYNCCOMPLETED"]
+        g_strErrorDialogMsg_VerificationFailed              = self.m_dictLanguages[g_strDefaultLang]["STR_ERRORDIALOG_MSG_VERIFICATIONFAILED"]
+        self.btnManualVerification.text                     = self.m_dictLanguages[g_strDefaultLang]["STR_BTN_MANUALVERIFICATION_TEXT"]
     
+    def ChangeSyncBtnText(self, iState): # WITHOUT COPY, it will cause abnormal phenomenon
+        if iState == 0:
+            self.btnSync_boxIndexBody.style.update(background_color = TRANSPARENT)
+            self.btnSync_boxIndexBody.text = "".join(self.m_dictLanguages[g_strDefaultLang]["STR_BTN_SYNC_DYN_SYNC"])
+        elif iState == -1:
+            self.btnSync_boxIndexBody.style.update(background_color = TRANSPARENT)
+            self.btnSync_boxIndexBody.text = "".join(self.m_dictLanguages[g_strDefaultLang]["STR_BTN_SYNC_DYN_SYNCING"])
+        elif iState == 1:
+            self.btnSync_boxIndexBody.style.update(background_color = "green")
+            self.btnSync_boxIndexBody.text = "".join(self.m_dictLanguages[g_strDefaultLang]["STR_BTN_SYNC_DYN_SYNCSUCCESS"])
+        elif iState == 2:
+            self.btnSync_boxIndexBody.style.update(background_color = "red")
+            self.btnSync_boxIndexBody.text = "".join(self.m_dictLanguages[g_strDefaultLang]["STR_BTN_SYNC_DYN_SYNCFAILURE"])
+        
     def FreshCards(self):
         while len(self.boxCards_boxLibraryBody.children) != 0:
             self.boxCards_boxLibraryBody.remove(self.boxCards_boxLibraryBody.children[0])
@@ -1467,6 +2234,7 @@ class wordgets(toga.App):
     
     def ChangeWordLearningBtns(self, iStatus):
         if iStatus == 0: # Clear all buttons
+            self.boxIndexBody_Row3Hidden.style.update(visibility = HIDDEN)
             while len(self.boxIndexBody_Row3Blank.children) != 0:
                 self.boxIndexBody_Row3Blank.remove(self.boxIndexBody_Row3Blank.children[0])
             while len(self.boxIndexBody_Row5.children) != 0:
@@ -1476,9 +2244,10 @@ class wordgets(toga.App):
                 self.btnShowBack
             )
         elif iStatus == 2: # Show the back
+            self.boxIndexBody_Row3Hidden.style.update(visibility = VISIBLE)
             self.boxIndexBody_Row3Blank.add(
-                self.btnDelete
-            )
+                self.sldDelete
+            )#self.btnDelete
             self.boxIndexBody_Row5.add(
                 self.btnStrange,
                 self.btnVague,
@@ -1558,8 +2327,13 @@ class wordgets(toga.App):
             "X":            iX,
             "Y":            iY,
             "width":        iWidth,
-            "height":       iHeight
+            "height":       iHeight,
+            "appid":        g_strAppId, 
+            "access_token": g_strAccessToken, 
+            "username":     g_strUsername
         })
+        if os.path.exists(g_strDataPath) == False:
+            os.makedirs(g_strDataPath)    #In case of nonexistent directory
         with open(g_strConfigPath, 'w') as f:
             f.write(json_str)
 
@@ -1614,6 +2388,10 @@ class wordgets(toga.App):
             return True
         except Exception:
             return False
+
+    
+        
+
 
 def main():
     return wordgets()
