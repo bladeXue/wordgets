@@ -65,6 +65,8 @@ output = template.render(variable_name = variable_name,
 *   Change between different word lists in just a ComboBox and automatically load the vocabulary card when the app is opened.
 
     在下拉框里切换不同的单词卡，并在程序打开时自动加载单词卡。
+*   Synchonize learning situation via Baidu NetDisk
+    
 
 Known problems:
 
