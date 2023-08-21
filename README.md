@@ -66,32 +66,30 @@ output = template.render(variable_name = variable_name,
 
     在下拉框里切换不同的单词卡，并在程序打开时自动加载单词卡。
 *   Synchonize learning situation via Baidu NetDisk
+
+    利用百度云同步学习情况
     
 
 Known problems:
 
 已知问题：
 
-*   **Be lag when changing cards**. The bigger the size of the used Excel file is, the slower the next cards displays. However, when the Excel saves as .csv by Excel 2021 or WPS 2023 I tested, the phonetic symbols become messy codes even if encoded again and that is why I does not use this way though .csv is read much faster than .xlsx in Python.
+*   **Be lag when changing cards**. The bigger the size of the used Excel file is, the slower the next cards displays. However, when the Excel saves as .csv by Excel 2021 or WPS 2023 I tested, the phonetic symbols become messy codes even if encoded again and that is why I does not use this way though .csv is read much faster than .xlsx in Python. ** Recommend multiple split wordlists instead of the whole one**
 
-    切换单词卡有卡顿。使用的Excel文件越大，显示下一张卡片也就越慢。然而，我测试的在Excel 2021或WPS2023里将Excel另存为.csv，音标会成乱码，即使重新编码也是一样。因此，尽管python读取.csv文件远远快于.xlsx，我也没采用这种方式。
+    切换单词卡有卡顿。使用的Excel文件越大，显示下一张卡片也就越慢。然而，我测试的在Excel 2021或WPS2023里将Excel另存为.csv，音标会成乱码，即使重新编码也是一样。因此，尽管python读取.csv文件远远快于.xlsx，我也没采用这种方式。**建议将一整个词表分成几个**
+    
 *   Scroll bars in Management does not work in Windows. Currently, when the information of a card or a word list you add just displays abnormally, you should change the window size of Management.
 
     管理器的滚动条在Windows上失效。当前，当你添加的卡片或者单词表信息显示异常，你需要调整管理器的窗口大小。
 *   There could be something unreasonable in the used memory algorithm [SuperMemo2](https://pypi.org/project/supermemo2/). The selection of feeling strange(quality=0) and vague(quality=2) will return the same next review date (i.e. 1 day later). Currently the solution is that a word with quality=0 should be review today. Also, I have not seen what regulation should be adopted to compute the review priority of the studied words. Currently, I use a policy that GPT recommends: the former the review date, or the smaller the value of the expression $` easiness^{repetitions}/{interval} `$ with the same review date, the urgent the review of the word.
 
     使用的SuperMemo2算法可能有些不合理的地方。选择感到陌生（quality=0）和模糊（quality=2）得到的下一次复习日期是一致的（即都是一天后）。当前的解决方法是quality=0时，今天之内应当再次复习。此外，我没有看到如何计算学习过的单词的优先级的规则。当前，我使用的是GPT推荐的策略：复习日期越早或者相同日期的情况下表达式$` easiness^{repetitions}/{interval} `$的值越小，词的复习越紧急。
-*   Not support auto-play sound. It limits by browser policy for saving net flow.
 
-    不支持自动播放音频。这是受到了浏览器节约流量的策略的限制所致。
 
 Future plans (may not realize for heavy work):
 
 未来计划（工作繁重，也许并不会实现）：
 
-*   To add synchronization via net disks.
-
-    将增加网盘同步。
 *   To add a launcher for Desktop OSs to hide the title bar and make the main program always on top, which can realize the style just like Windows Vista gadgets.
 
     为桌面操作系统平台加一个启动器，用于隐藏标题栏并让程序始终置顶，实现类似于Windows Vista系统的小工具的样式。
