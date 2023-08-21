@@ -1,38 +1,5 @@
 # Wordgets: A word memory desktop gadget
 
-### 
-
-Wordgets是一个单词记忆桌面小工具。
-
-==**ALERT**: Bug exists. ==
-
-==警告：存在BUG。==
-
-![wordgets Latest version](https://github.com/leaffeather/images/blob/main/wordgets-2.png?raw=true)
-![image](https://github.com/leaffeather/wordgets/assets/134275609/891ef171-4a9b-41ee-b379-8e5d07166747)
-
-
-This project was based on [**BeeWare**](https://github.com/beeware) - a cross-platform Python GUI library. It has the following features:
-
-该项目之前基于BeeWare，这是一个跨平台的Python图形用户界面库。此应用有如下特征：
-
-*   **The rearend is supported**, which is the maximum motivation that I developed this app. The rearend part of rendering a template webpage is separated from the main application, which means that you can customize more functions in liberty. Here is the tutorial:
-
-    支持后端。这是我开发这个应用的最大动力。渲染模板网页的后端部分从主程序分离出来，意味着你可以方便地个性化更多功能。教程如下：
-
-> 1.  Excel worksheet: You should backup the initial excel file and ensure it only have one worksheet. The row 1 will automatically be skipped, so you can put the corresponding column information in.
->
->     Excel表：你应当备份最初的Excel文件，并确保其中只有一张工作表。第一行会自动忽略掉，因此，你可以写些有关列的信息。
-> 2.  HTML template: Use `{{field}}` like cards in Anki. If you are unwilling to let the field content escape and embed text as webpage code, please use `{{field | safe}}` in the webpage.
->
->     网页模板：像Anki卡片一样使用{{field}}（field：字段）。如果你不希望field的内容转义并且将其作为网页代码的一部分，请在网页中使用{{field | safe}}。
-> 3.  Python script\:Please follow the example:
->
->     Python脚本：参考如下：
-> 4.  If you wish that the word pronounciates automatically, you should use like `<audio src="..." **autopplay**></audio>`
->
-# Wordgets: A word memory desktop gadget
-
 
 ### 
 
@@ -75,6 +42,7 @@ This project was based on [**BeeWare**](https:github.com/beeware) - a cross-plat
 >     Python脚本：参考如下：
 > 4.  If you wish that the word pronounciates automatically, you should use like `<audio src="..." **autopplay**></audio>`
 >     
+>     如果你想要单词自动发音，你应当使用例如`<audio src="..." **autopplay**></audio>`
 
 
 ```python
