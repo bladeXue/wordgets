@@ -40,9 +40,9 @@ This project was based on [**BeeWare**](https:github.com/beeware) - a cross-plat
 > 3.  Python script\:Please follow the example:
 >
 >     Python脚本：参考如下：
-> 4.  If you wish that the word pronounciates automatically, you should use like `<audio src="..." autopplay></audio>`.
+> 4.  If you wish that the word pronounciates automatically, you should use like `<audio src="..." autoplay></audio>`.
 >     
->     如果你想要单词自动发音，你应当使用例如`<audio src="..." autopplay></audio>`
+>     如果你想要单词自动发音，你应当使用例如`<audio src="..." autoplay></audio>`
 
 
 ```python
