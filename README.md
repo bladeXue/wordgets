@@ -4,10 +4,6 @@
 
 ### 
 
-
-Wordgets是一个单词记忆桌面小工具。
-
-
 ![cover](https://github.com/leaffeather/images/blob/main/wordgets_cover.png?raw=true)
 
 
