@@ -8,14 +8,7 @@
 Wordgets是一个单词记忆桌面小工具。
 
 
-==**ALERT**: Bug exists. ==
-
-
-==警告：存在BUG。==
-
-
-![wordgets Latest version](https://github.com/leaffeather/images/blob/main/wordgets-2.png?raw=true)
-![image](https://github.com/leaffeather/wordgets/assets/134275609/891ef171-4a9b-41ee-b379-8e5d07166747)
+![cover](https://github.com/leaffeather/images/blob/main/wordgets_cover.png?raw=true)
 
 
 
