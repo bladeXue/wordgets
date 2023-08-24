@@ -2,8 +2,6 @@ import toga
 from toga.style import Pack
 from toga.style.pack import COLUMN, ROW, LEFT, CENTER, RIGHT, HIDDEN, VISIBLE, NORMAL, BOLD, TRANSPARENT
 import os
-import platform
-import sys
 import json
 import re
 import copy
@@ -23,11 +21,12 @@ import hashlib
 import shutil
 import asyncio
 import urllib.request
-from pydub import AudioSegment
-from pydub.playback import play
+import toga.platform 
 
 # Global variables
+g_strCurrentOS      = toga.platform.current_platform
 g_strRunPath        = ""
+g_strDataPath       = ""
 g_strLangPath       = ""
 g_strDBPath         = ""
 g_strConfigPath     = ""
@@ -117,20 +116,6 @@ g_iTmpCntStudiedOldWords    = 0 # It can be over than real total of old words.
 g_iTmpSyncState             = -2
 
 # Functions
-def GetOS() -> str:
-    strOS = platform.system() # If Windows, return Windows
-    if strOS == 'Linux':
-        if str(hasattr(sys, 'getandroidapilevel')):
-            strOS = 'Android'
-        else:
-            strOS = 'Linux'
-    elif strOS == 'Darwin':
-        if platform.mac_ver()[0].startswith('iPhone'):
-            strOS = 'iOS'
-        else:
-            strOS = 'MacOS'
-    return strOS
-
 def GetRenderedHTML(strHTMLTemplateFilePath: str, strPyFilePath: str, dicDynVariables: str) -> str:
     folder_path, file_name = os.path.split(strHTMLTemplateFilePath)
     dicDynVariables['folder_path'] = folder_path
@@ -161,7 +146,8 @@ def GetFolderSize(strFolder: str) -> int:
             total_size += os.path.getsize(file_path)
     return total_size
 
-class AutoPlayThread(Thread):
+#Autoplay 1: Enable on Linux p.s. ._impl.native.get_settings().set_media_playback_requires_user_gesture(False) not work
+class AutoPlayThread(Thread):  
     def __init__(self, strHtmlText):
         super(AutoPlayThread, self).__init__()
         self._strHtmlText = strHtmlText
@@ -178,43 +164,18 @@ class AutoPlayThread(Thread):
                         #Web sound
                         response = requests.get(src, stream = True)
                         
-                        print("written before")
                         with open(os.path.join(g_strDataPath,"TmpMusic.snd_"), "wb") as f:
                             for chunk in response.iter_content(chunk_size=1024*1024):
                                 if chunk:
                                     f.write(chunk)
-                        print("written suc")
                         filedir = os.path.join(g_strDataPath,"TmpMusic.snd_")
                     else:
-                        #Local sound
                         filedir = src
-                    if GetOS() == "Android":
-                        from android.media import AudioManager, SoundPool
-                        soundPool = SoundPool(5, AudioManager.STREAM_MUSIC, 0)
-                        soundId = soundPool.load(filedir, 1)
-                        
-                        while True:
-                            time.sleep(0.1)
-                            if soundPool.play(soundId, 1, 1, 1, 0, 1) != 0:
-                                break
-                        
-                        '''
-                        class OnLoadCompleteListener(SoundPool.OnLoadCompleteListener):
-                            def __init__(self, callback):
-                                self.callback = callback
-                            def onLoadComplete(self, soundPool, sampleId, status):
-                                self.callback(soundPool, sampleId, status)
-                                #soundPool.play(sampleId, 1, 1, 1, 0, 1.0)
-                        onLoadCompleteListener = OnLoadCompleteListener(lambda soundPool, sampleId, status: soundPool.play(sampleId, 1, 1, 1, 0, 1.0))
-                        soundPool.setOnLoadCompleteListener(onLoadCompleteListener)
-                        '''
-                        #time.sleep(0.3)
-                        #soundPool.play(soundId, 1, 1, 1, 0, 1)
-                    else:
-                        sound = AudioSegment.from_file(filedir)  #Auto detect format
-                        play(sound)
+                    from pydub import AudioSegment
+                    from pydub.playback import play
+                    sound = AudioSegment.from_file(filedir)  #Auto detect format
+                    play(sound)
         except Exception as e:
-            print(e)
             return
     def kill(self):
         try:
@@ -225,6 +186,27 @@ class AutoPlayThread(Thread):
 autoPlayThread = AutoPlayThread("")
 autoPlayThread.setDaemon(True)
 
+# MacOS does not support set_content method. Use flask
+class FlaskThreadOnMac(Thread):   
+    def __init__(self, strHtmlPath, strPyPath, dicDynVariables):
+        super(FlaskThreadOnMac, self).__init__()
+        self._strHtmlPath = strHtmlPath
+        self._strPyPath = strPyPath
+        self._dicDynVariables = dicDynVariables
+    
+    def run(self):
+        GetRenderedHTML(
+            self._strHtmlPath,
+            self._strPyPath,
+            self._dicDynVariables
+        )
+
+    def kill(self):
+        try:
+            self._stop()
+        except Exception:
+            return
+
 class wordgets(toga.App):
     #Hide menu bar
     def _create_impl(self):
@@ -233,6 +215,10 @@ class wordgets(toga.App):
         return factory_app(interface=self)
 
     def startup(self):
+        if g_strCurrentOS == 'windows':                          # Autoplay 3: Enable on Windows
+            from System import Environment
+            Environment.SetEnvironmentVariable("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--autoplay-policy=no-user-gesture-required")
+
         global g_strRunPath, g_strLangPath, g_strDBPath, g_strConfigPath, g_strCardsPath, g_strWordlistsPath, g_strDataPath, g_strAppId, g_strAccessToken, g_strUsername
 
         g_strRunPath        = self.paths.app.absolute()
@@ -303,6 +289,9 @@ class wordgets(toga.App):
             self.boxIndexBody_Row3Blank
         )
         self.wbWord_boxIndexBody = toga.WebView(style = Pack(direction = COLUMN, flex = 1))
+
+        if g_strCurrentOS == "android":                          # Autoplay 4: Enable on Android
+            self.wbWord_boxIndexBody._impl.native.getSettings().setMediaPlaybackRequiresUserGesture(False)
         
         boxIndexBody_Row5Border = toga.Box(style=Pack(direction = ROW))
         boxIndexBody_Row5Hidden = toga.Box(style=Pack(direction = COLUMN))
@@ -368,20 +357,25 @@ class wordgets(toga.App):
             boxSettingsBody_Row1Col2
         )
 
-        boxSettingsBody_Row2                    = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
+        boxSettingsBody_Row2                    = toga.Box(style = Pack(direction = ROW, alignment = CENTER, padding_top = 5))
         boxSettingsBody_Row2Col1                = toga.Box(style = Pack(direction = ROW, width = 150))
         self.lblCloudSvc_boxSettingsBody        = toga.Label("", style = Pack(background_color = TRANSPARENT))
         boxSettingsBody_Row2Col1.add(
             self.lblCloudSvc_boxSettingsBody
         )
 
-        boxSettingsBody_Row2Col2 = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
+        boxSettingsBody_Row2Col2 = toga.Box(style = Pack(direction = COLUMN, alignment = CENTER))
+        boxSettingsBody_Row2Col2Row1 = toga.Box(style = Pack(direction = ROW, flex = 1, alignment = CENTER))
         self.btnLogin_Row2Col2 = toga.Button("", style = Pack(background_color = TRANSPARENT), on_press = self.cbLoginCloudSvc)
         self.btnLogout_Row2Col2 = toga.Button("", style = Pack(background_color = TRANSPARENT), on_press = self.cbLogoutAccount)
-        self.lblLoginState_Row2Col2 = toga.Label("", style = Pack(background_color = TRANSPARENT))
-        boxSettingsBody_Row2Col2.add(
+        boxSettingsBody_Row2Col2Row1.add(
             self.btnLogin_Row2Col2,
             self.btnLogout_Row2Col2,
+        )
+
+        self.lblLoginState_Row2Col2 = toga.Label("", style = Pack(background_color = TRANSPARENT, flex = 1))
+        boxSettingsBody_Row2Col2.add(
+            boxSettingsBody_Row2Col2Row1,
             self.lblLoginState_Row2Col2
         )
         
@@ -390,7 +384,7 @@ class wordgets(toga.App):
             boxSettingsBody_Row2Col2
         )
 
-        boxSettingsBody_Row3                    = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
+        boxSettingsBody_Row3                    = toga.Box(style = Pack(direction = ROW, alignment = CENTER, padding_top = 5))
         boxSettingsBody_Row3Col1                = toga.Box(style = Pack(direction = ROW, width = 150))
         self.lblClearCache_boxSettingsBody      = toga.Label("", style = Pack(background_color = TRANSPARENT))
         boxSettingsBody_Row3Col1.add(
@@ -479,7 +473,8 @@ class wordgets(toga.App):
             self.lblCardFrontBackend_boxEditCardBody,
             self.txtCardFrontBackend_boxEditCardBody
         )
-        self.chkEnableCardBack = toga.Switch("", style = Pack(background_color = TRANSPARENT, flex = 1), value = False, on_change = self.cbEnableCardBackOnChange)
+        self.chkEnableCardBack = toga.Switch("", style = Pack(background_color = TRANSPARENT, flex = 1))
+
         self.boxEditCardBodyRow1Row5 = toga.Box(style = Pack(direction = COLUMN, flex = 1))
         self.lblCardBackFrontend_boxEditCardBody = toga.Label("", style = Pack(background_color = TRANSPARENT, flex = 1))
         self.txtCardBackFrontend_boxEditCardBody = toga.TextInput(style = Pack(flex = 1))
@@ -501,13 +496,15 @@ class wordgets(toga.App):
                 self.boxEditCardBodyRow1Row5
             ],style = Pack(direction = COLUMN)
         )
+        
+        self.chkEnableCardBack.on_change = self.cbEnableCardBackOnChange
+        self.chkEnableCardBack.value = True  #A bug. Initially not hide
 
         self.btnSaveCard_boxEditCardBody = toga.Button("", on_press = self.cbSaveCardOnPress)
         self.boxEditCardBody.add(
             sbEditCardBodyRow1,
             self.btnSaveCard_boxEditCardBody
         )
-        self.boxEditCardBodyRow1Row5.style.update(visibility = HIDDEN)
 
         # Body of editing a word list
         self.boxEditWordListBody = toga.Box(style = Pack(direction = COLUMN, flex = 1))
@@ -574,7 +571,7 @@ class wordgets(toga.App):
             self.lblCloudSvcP3Title_boxCloudSvcP3
         )
 
-        self.wbCloudSvcP3_LoginAccount = toga.WebView(style = Pack(direction = COLUMN, flex = 1, height = 600)) #A bug. Cannot automatically adjust height
+        self.wbCloudSvcP3_LoginAccount = toga.WebView(style = Pack(direction = COLUMN, flex = 1)) #A bug. Cannot automatically adjust height
 
         boxManualVerification_boxCloudSvcP3 = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
         self.btnManualVerification = toga.Button("", style = Pack(direction = COLUMN, flex = 1), on_press = self.cbManualVerificationOnPress)
@@ -588,7 +585,10 @@ class wordgets(toga.App):
             self.wbCloudSvcP3_LoginAccount
         )
 
-        self.wbCloudSvcP3_LoginAccount.set_content("NO_CONTENT", g_EmptyHtml)
+        if g_strCurrentOS != 'macOS':
+            self.wbCloudSvcP3_LoginAccount.set_content("NO_CONTENT", g_EmptyHtml)
+        else:
+            self.wbCloudSvcP3_LoginAccount.url = 'http://127.0.0.1'
 
         # Windows of Cloud Services. End--------------------------------------------------------------------------------------------------------------------
 
@@ -598,7 +598,7 @@ class wordgets(toga.App):
             self.m_dictLanguages = json.load(f)
 
         global g_bIsMobile, g_strDefaultLang, g_strOpenedWordListName, g_bOnlyReview
-        if GetOS() in ['Windows','Linux','MacOS']:
+        if not(g_strCurrentOS == "android" or g_strCurrentOS == "iOS"):
             g_bIsMobile = False
 
         #Read configuration
@@ -652,7 +652,10 @@ class wordgets(toga.App):
                 global g_dictCards
                 g_dictCards = json.load(f)
         
-        self.wbWord_boxIndexBody.set_content("NO_CONTENT", g_EmptyHtml)
+        if g_strCurrentOS != 'macOS':
+            self.wbWord_boxIndexBody.set_content("NO_CONTENT", g_EmptyHtml)
+        else:
+            self.wbWord_boxIndexBody.url = 'http://127.0.0.1'
 
         self.m_lsRememberSeq = []
         bAllFilesAreValid = self.ValidateFiles()
@@ -663,10 +666,9 @@ class wordgets(toga.App):
             self.btnSync_boxIndexBody.enabled = True
             # A bug. On Android, async startup will not display anything and asyncio.run will cause confliction and nest_asyncio will raise NotImplementedError
             # Indirect method: use a widget callback to execute async function. This method is not suitable for Windows as it will cause exception!!
-            if GetOS() == 'Android':
+            if g_strCurrentOS == 'android':
                 chkTmp = toga.Switch("114514", value = False)
                 chkTmp.on_change = self.SyncDBToLocal
-                #asyncio.sleep(1)
                 chkTmp.value = True
             else:
                 asyncio.run(self.SyncDBToLocal(None))
@@ -1213,7 +1215,10 @@ class wordgets(toga.App):
 
     def cbNextCard(self, iQuality, widget): # iQuality = -1 if there is no need to update record
         global autoPlayThread
-        autoPlayThread.kill()
+        if g_strCurrentOS == "linux":
+            autoPlayThread.kill()
+
+        
         self.ChangeWordLearningBtns(0)
         conn = sqlite3.connect(g_strDBPath)
         cursor = conn.cursor()
@@ -1351,7 +1356,11 @@ class wordgets(toga.App):
             result = cursor.fetchone()
             
             if result == None:
-                self.wbWord_boxIndexBody.set_content("NO_CONTENT", g_EmptyHtml)
+                if g_strCurrentOS != 'macOS':
+                    self.wbWord_boxIndexBody.set_content("NO_CONTENT", g_EmptyHtml)
+                else:
+                    self.wbWord_boxIndexBody.url = "http://127.0.0.1"
+                
                 conn.commit()
                 conn.close()
                 # If only review is true and rest new cards is not 0,
@@ -1392,8 +1401,11 @@ class wordgets(toga.App):
             #Find a new word
             if len(self.m_lsRememberSeq) == 0:
                 # All new words have been studied. 
-                
-                self.wbWord_boxIndexBody.set_content("NO_CONTENT", g_EmptyHtml)
+                if g_strCurrentOS != 'macOS':
+                    self.wbWord_boxIndexBody.set_content("NO_CONTENT", g_EmptyHtml)
+                else:
+                    self.wbWord_boxIndexBody.url = "http://127.0.0.1"
+
                 conn.commit()
                 conn.close()
                 if g_iTmpCntStudiedNewWords == 0 and g_iTmpCntStudiedOldWords == 0: # A bug: if the program just runs, the info dialog will raise RuntimeError.
@@ -1425,15 +1437,28 @@ class wordgets(toga.App):
             dicDynVariables = {}
             for i in range(1, sheet.max_column + 1):
                 dicDynVariables[ConvertNumToExcelColTitle(i)] = FilterForExcelNoneValue(sheet.cell(row = g_iTmpPrevWordNo, column = i).value)
-            strRenderedHTML = GetRenderedHTML(
-                dictCardTypeThisCardUses['single-sided']['frontend'],
-                dictCardTypeThisCardUses['single-sided']['backend'],
-                dicDynVariables
-            )
-            autoPlayThread = AutoPlayThread(strRenderedHTML)
-            autoPlayThread.setDaemon(True)
-            autoPlayThread.start()
-            self.wbWord_boxIndexBody.set_content("wordgets", strRenderedHTML)
+            
+            if g_strCurrentOS != "macOS":
+                strRenderedHTML = GetRenderedHTML(
+                    dictCardTypeThisCardUses['single-sided']['frontend'],
+                    dictCardTypeThisCardUses['single-sided']['backend'],
+                    dicDynVariables
+                )
+                
+                if g_strCurrentOS == "linux":
+                    autoPlayThread = AutoPlayThread(strRenderedHTML)
+                    autoPlayThread.setDaemon(True)
+                    autoPlayThread.start()
+
+                self.wbWord_boxIndexBody.set_content("wordgets", strRenderedHTML)
+            else:
+                
+                flaskThreadOnMac = FlaskThreadOnMac(dictCardTypeThisCardUses['single-sided']['frontend'], dictCardTypeThisCardUses['single-sided']['backend'], dicDynVariables)
+                flaskThreadOnMac.setDaemon(True)
+                flaskThreadOnMac.start()
+                self.wbWord_boxIndexBody.url = "http://127.0.0.1"
+                self.wbWord_boxIndexBody.url = "http://127.0.0.1:5000"
+                flaskThreadOnMac.kill()
 
             #Change button
             self.ChangeWordLearningBtns(2)
@@ -1444,22 +1469,36 @@ class wordgets(toga.App):
             dicDynVariables = {}
             for i in range(1, sheet.max_column + 1):
                 dicDynVariables[ConvertNumToExcelColTitle(i)] = FilterForExcelNoneValue(sheet.cell(row = g_iTmpPrevWordNo, column = i).value)
-            strRenderedHTML = GetRenderedHTML(
-                dictCardTypeThisCardUses['front']['frontend'],
-                dictCardTypeThisCardUses['front']['backend'],
-                dicDynVariables
-            )
-            autoPlayThread = AutoPlayThread(strRenderedHTML)
-            autoPlayThread.setDaemon(True)
-            autoPlayThread.start()
-            self.wbWord_boxIndexBody.set_content("wordgets", strRenderedHTML)
+            
+            if g_strCurrentOS != 'macOS':
+                strRenderedHTML = GetRenderedHTML(
+                    dictCardTypeThisCardUses['front']['frontend'],
+                    dictCardTypeThisCardUses['front']['backend'],
+                    dicDynVariables
+                )
+
+                if g_strCurrentOS == "linux":
+                    autoPlayThread = AutoPlayThread(strRenderedHTML)
+                    autoPlayThread.setDaemon(True)
+                    autoPlayThread.start()
+
+                self.wbWord_boxIndexBody.set_content("wordgets", strRenderedHTML)
+            else:
+                
+                flaskThreadOnMac = FlaskThreadOnMac(dictCardTypeThisCardUses['front']['frontend'], dictCardTypeThisCardUses['front']['backend'], dicDynVariables)
+                flaskThreadOnMac.setDaemon(True)
+                flaskThreadOnMac.start()
+                self.wbWord_boxIndexBody.url = "http://127.0.0.1"
+                self.wbWord_boxIndexBody.url = "http://127.0.0.1:5000"
+                flaskThreadOnMac.kill()
 
             #Change button
             self.ChangeWordLearningBtns(1)
 
     def cbShowBack(self, widget):
         global autoPlayThread
-        autoPlayThread.kill()
+        if g_strCurrentOS == "linux":
+            autoPlayThread.kill()
         self.ChangeWordLearningBtns(0)
         dictCardTypeThisCardUses = g_dictCards[g_dictWordLists[g_strOpenedWordListName]['CardType'+str(g_iTmpPrevCardType)]]
 
@@ -1468,16 +1507,28 @@ class wordgets(toga.App):
         dicDynVariables = {}
         for i in range(1, sheet.max_column + 1):
             dicDynVariables[ConvertNumToExcelColTitle(i)] = FilterForExcelNoneValue(sheet.cell(row = g_iTmpPrevWordNo, column = i).value)
-        strRenderedHTML = GetRenderedHTML(
-            dictCardTypeThisCardUses['back']['frontend'],
-            dictCardTypeThisCardUses['back']['backend'],
-            dicDynVariables
-        )
-        autoPlayThread = AutoPlayThread(strRenderedHTML)
-        autoPlayThread.setDaemon(True)
-        autoPlayThread.start()
-        self.wbWord_boxIndexBody.set_content("wordgets", strRenderedHTML)
+        
+        if g_strCurrentOS != 'macOS':
+            strRenderedHTML = GetRenderedHTML(
+                dictCardTypeThisCardUses['back']['frontend'],
+                dictCardTypeThisCardUses['back']['backend'],
+                dicDynVariables
+            )
+            if g_strCurrentOS == "linux":
+                autoPlayThread = AutoPlayThread(strRenderedHTML)
+                autoPlayThread.setDaemon(True)
+                autoPlayThread.start()
+            
+            self.wbWord_boxIndexBody.set_content("wordgets", strRenderedHTML)
 
+        else:
+            flaskThreadOnMac = FlaskThreadOnMac(dictCardTypeThisCardUses['back']['frontend'], dictCardTypeThisCardUses['back']['backend'], dicDynVariables)
+            flaskThreadOnMac.setDaemon(True)
+            flaskThreadOnMac.start()
+            self.wbWord_boxIndexBody.url = "http://127.0.0.1"
+            self.wbWord_boxIndexBody.url = "http://127.0.0.1:5000"
+            flaskThreadOnMac.kill()
+        
         self.ChangeWordLearningBtns(2)
 
     def cbChangeCurWordList(self, widget):
@@ -1507,6 +1558,8 @@ class wordgets(toga.App):
     def cbChangeChkReviewOnly(self, widget):
         global g_bOnlyReview
         g_bOnlyReview = widget.value
+        if len(self.cboCurWordList_boxIndexBody.items) == 0:
+            return
         if g_bOnlyReview == False:
             self.cbNextCard(-1, None)
     
@@ -1591,7 +1644,7 @@ class wordgets(toga.App):
             #while len(self.boxBody.children) != 0:
             #    self.boxBody.remove(self.boxBody.children[0])
 
-            await self.SyncDBToLocal()
+            await self.SyncDBToLocal(None)
             self.SaveConfiguration()
             self.GenerateNewWordsSeqOfCurrentWordList() # It is necessary.
             self.cbBtnSettingsOnPress(None)
@@ -1615,7 +1668,7 @@ class wordgets(toga.App):
             self.lblLoginState_Row2Col2.text                = "".join(self.m_dictLanguages[g_strDefaultLang]["STR_LBL_LOGINSTATE_TEXT_LOGIN"] % username)  #Crash when using gloabal variable
             self.btnSync_boxIndexBody.enabled = True
             
-            await self.SyncDBToLocal()
+            await self.SyncDBToLocal(None)
             self.SaveConfiguration()
             self.GenerateNewWordsSeqOfCurrentWordList() # It is necessary.
             self.cbBtnSettingsOnPress(None)
@@ -1631,8 +1684,9 @@ class wordgets(toga.App):
             self.boxCloudSvcP3
         )
         url = f"https://openapi.baidu.com/oauth/2.0/authorize?response_type=token&client_id={self.m_strTmpAppId}&redirect_uri=oob&scope=basic,netdisk&display=mobile"
-
-        self.wbCloudSvcP3_LoginAccount.on_webview_load = self.cbLoginOnWebviewLoad
+        
+        if g_strCurrentOS == "windows" or g_strCurrentOS == "macOS": #Linux: crashed; Android: not implemented.==========================================================
+            self.wbCloudSvcP3_LoginAccount.on_webview_load = self.cbLoginOnWebviewLoad
         self.wbCloudSvcP3_LoginAccount.url = url
         
         #thread = Thread(target=self.NewThreadToDetectJump)
@@ -2388,10 +2442,6 @@ class wordgets(toga.App):
             return True
         except Exception:
             return False
-
-    
-        
-
 
 def main():
     return wordgets()
