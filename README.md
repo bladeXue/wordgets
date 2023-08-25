@@ -99,12 +99,13 @@
         1. open [ Baidu NetDisk Open Platform](https://pan.baidu.com/union); 
         2. click [Apply to join] in the upper right corner and finish the application; 
         3. click [Console] and create an app; 
-        4. view the details of applications and copy [AppKey] to the corresponding text input in the login procedure in wordgets.
+        4. view the details of the app and copy [AppKey] to the corresponding text input in the login procedure in wordgets.
         
         Attention:
         1. You'd better not open the software until having synchonized at other devices.
         2. You should terminate the app when you don't want to continue to remember any more.
         3. If synchonization is failed and a message tells you that there is no network connection, it might be an outcome of the running of the network proxy app like Clash.
+        4. Wordgets will create a directory `wordgets_sync` on your Baidu NetworkDisk, don't move! Unless you plan to reset the synchronization database.
 
 3.  Known issues
     1.  [On windows] The scroll bars in Settings are dysfunctional. You can stretch the window for complete display.
