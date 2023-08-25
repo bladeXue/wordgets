@@ -21,7 +21,7 @@
 2.  Usage
     1. About the word list
     
-        The word list should be a .xlsx Excel workbook with only one worksheet. The first row saves the column names and then you can put each words and their relative contents row by row. It is recommended to place a maximum of approximately 4000 words in each word list, otherwise there may be obvious lag during the use of the program. Enabling automatic reading should use a method such as'<audio src="[audio address]" autoplay></audio>'.
+        The word list should be a .xlsx Excel workbook with only one worksheet. The first row saves the column names and then you can put each words and their relative contents row by row. It is recommended to place a maximum of approximately 4000 words in each word list, otherwise there may be obvious lag during the use of the program. Enabling automatic reading should use a method such as `<audio src="[audio address]" autoplay></audio>`.
     2. About the template card
     
         This part requires little programming knowledge.
