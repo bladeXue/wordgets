@@ -7,156 +7,100 @@
 ![cover](https://github.com/leaffeather/images/blob/main/wordgets_cover.png?raw=true)
 
 
-
-
-This project was based on [**BeeWare**](https:github.com/beeware) - a cross-platform Python GUI library. It has the following features:
-
-
-该项目之前基于BeeWare，这是一个跨平台的Python图形用户界面库。 此应用有如下特征：
-
-
-*   **The rearend is supported**, which is the maximum motivation that I developed this app. The rearend part of rendering a template webpage is separated from the main application, which means that you can customize more functions in liberty. Here is the tutorial:
-
-
-    支持后端。 这是我开发这个应用的最大动力。 渲染模板网页的后端部分从主程序分离出来，意味着你可以方便地个性化更多功能。 教程如下：
-
-
-> 1.  Excel worksheet: You should backup the initial excel file and ensure it only have one worksheet. The row 1 will automatically be skipped, so you can put the corresponding column information in.
->
->     Excel表：你应当备份最初的Excel文件，并确保其中只有一张工作表。 第一行会自动忽略掉，因此，你可以写些有关列的信息。
-> 2.  HTML template: Use `{{field}}` like cards in Anki. If you are unwilling to let the field content escape and embed text as webpage code, please use `{{field | safe}}` in the webpage.
->
->     网页模板：像Anki卡片一样使用{{field}}（field：字段）。 如果你不希望field的内容转义并且将其作为网页代码的一部分，请在网页中使用{{field | safe}}。
-> 3.  Python script\:Please follow the example:
->
->     Python脚本：参考如下：
-> 4.  If you wish that the word pronounciates automatically, you should use like `<audio src="..." **autoplay**></audio>`
->
->     如果你想要单词自动发音，你应当使用如`<audio src="..." **autoplay**></audio>`
-
-
-```python
-# Import
-exec("from jinja2 import Environment, FileSystemLoader", globals())  # Immutable
-exec("...")                 # Place the import statement at '...'
-
-
-# Create variables
-field = A           # field for html template and A is the column title in the Excel
-field_2 = B         # An example for another field
-...                 # More fields
-
-
-# Immutable block
-searchpath = folder_path
-name = file_name
-env = Environment(loader=FileSystemLoader(searchpath=searchpath))
-template = env.get_template(name=name)
-
-
-# You can customize the backend here
-...
-
-
-# It must place at the end
-output = template.render(variable_name = variable_name,
-                         variable_name_2 = variable_name_2,
-                         ... )  # Copy the used fields twice, add a "=" sign in the middle
-```
-
-
-> **If you use it on a moblie OS, please use http/https to import data.**
-> 
-> **如果你使用的是移动操作系统来运行它，请使用http/https的方式导入数据**
-
-
-*   Support **customizing one or two types of cards with different number of sides** via a simple Management.
-
-
-    支持自定义面数不同的一到两种卡。
-*   Change between different word lists in just a ComboBox and automatically load the vocabulary card when the app is opened.
-
-
-    在下拉框里切换不同的单词卡，并在程序打开时自动加载单词卡。
-*   Synchonize learning situation via Baidu NetDisk
-
-
-    利用百度云同步学习情况
-
-
-
-Known problems:
-
-
-已知问题：
-
-
-*   **Be lag when changing cards**. The bigger the size of the used Excel file is, the slower the next cards displays. However, when the Excel saves as .csv by Excel 2021 or WPS 2023 I tested, the phonetic symbols become messy codes even if encoded again and that is why I does not use this way though .csv is read much faster than .xlsx in Python. ** Recommend multiple split wordlists instead of the whole one**
-
-```python
-# Import
-exec("from jinja2 import Environment, FileSystemLoader", globals())  # Immutable
-exec("...")                 # Place the import statement at '...'
-
-# Create variables
-field = A           # field for html template and A is the column title in the Excel
-field_2 = B         # An example for another field
-...                 # More fields
-
-# Immutable block
-searchpath = folder_path
-name = file_name
-env = Environment(loader=FileSystemLoader(searchpath=searchpath))
-template = env.get_template(name=name)
-
-# You can customize the backend here
-...
-
-# It must place at the end
-output = template.render(variable_name = variable_name,
-                         variable_name_2 = variable_name_2,
-                         ... )  # Copy the used fields twice, add a "=" sign in the middle
-```
-
-> **If you use it on a moblie OS, please use http/https to import data.**
-> 
-> **如果你使用的是移动操作系统来运行它，请使用http/https的方式导入数据**
-
-*   Support **customizing one or two types of cards with different number of sides** via a simple Management.
-
-    支持自定义面数不同的一到两种卡。
-*   Change between different word lists in just a ComboBox and automatically load the vocabulary card when the app is opened.
-
-    在下拉框里切换不同的单词卡，并在程序打开时自动加载单词卡。
-*   Synchonize learning situation via Baidu NetDisk
-
-    利用百度云同步学习情况
+1.  Introduction
+    Wordgets is a word memory app based on Beeware -- a cross-platform, Python native toolkit. It has following features:
+    - **Support custom backend**. Attention: users ++must follow the local network laws and regulations made up by corresponding network service providers++ when using the backend to get certain web services.
+    - **Support cross-device and cross-platform synchonization via Baidu NetDisk**. 
+    - **Support autoplay of the audio and video**.
     
+    Supported platforms:
+    - Windows >= 10
+    - Android >= 10
+    - MacOS >= 10.10
+2.  Usage
+    1. About the word list 
+        The word list should be a .xlsx Excel workbook with only one worksheet. The first row saves the column names and then you can put each words and their relative contents row by row.
+    2. About the template card
+        This part requires little programming knowledge.
+        You can specify one or two kinds of the single-sided or double-sided card for each word list. And each card side contains a frontend .html template webpage and a backend .py python script. Specifically:
+        1. template webpage (for all supported platforms)
+            Create a HTML and use fields wrapped in two curly braces like field *word* by `{{word}}`, field *explanation* by `{{explanation}}`. If you want to embed HTML code generated by python script, you need use fields like field *formula* by `{{formula | safe}}`.
+        
+        2. python script (for Windows/Android)
+            ```python
+            exec("from jinja2 import Environment, FileSystemLoader",globals())  # ** Do not modify **
+            exec("from bs4 import BeautifulSoup",globals())   # Import a package you want by this method
+            
+            # The left is the field and the right corresponds to the alphabetical column number in Excel
+            word = A 
+            explanation = B 
+            
+            searchpath = folder_path                                            # ** Do not modify ** 
+            name = file_name                                                    # ** Do not modify ** 
+            env = Environment(loader=FileSystemLoader(searchpath=searchpath))   # ** Do not modify ** 
+            template = env.get_template(name=name)                              # ** Do not modify ** 
+            
+            # You can customize some codes here
+            formula = "<div id="raw-formula"> \(\int_a^b f(x)dx\) </div>"
+            
+            # You only need to modify the content within the parentheses, 
+            # copy the fields twice, add = in the middle, and remember to add the comma
+            output = template.render(word = word, 
+                                     explanation = explanation,
+                                     formula = formula)
+            ```
+        3. python script (for MacOS)
+            ```python
+            exec("from flask import Flask, render_template", globals())         # ** Do not modify **
+            exec("from bs4 import BeautifulSoup",globals())   # Import a package you want by this method
+            
+            # The left is the field and the right corresponds to the alphabetical column number in Excel
+            word = A 
+            explanation = B 
+            
+            searchpath = folder_path                                            # ** Do not modify **
+            name = file_name                                                    # ** Do not modify **
+            app = Flask(__name__, template_folder = searchpath)                 # ** Do not modify **
+            
+            # You can customize some codes here
+            formula = "<div id="raw-formula"> \(\int_a^b f(x)dx\) </div>"
+            
+            @app.route('/')                                                     # ** Do not modify **
+            def index():                                                        # ** Do not modify **
+                global word, explanation, formula # Place all fields you use after global,
+                                                  # with a comma in the middle of every twos
+                
+                # Do not change the first line.
+                # Copy each field you use twice later, add = in the middle,
+                # and don't forget to add the comma.
+                return render_template(template_name_or_list = name, 
+                                       word = word, 
+                                       explanation = explanation,
+                                       formula = formula)
+                                
+            app.run(debug = False, use_reloader = False)                        # ** Do not modify **
+            ```
+    3. How to import cards or word lists
+    If you are using a Windows or a MacOS, you can simply fill the text input with absolute path of the target file. The app will always interact with these files directly, so you should not make changes on them.
+    To Android, things become more complex. Please follow these steps:
+        1. Your phone and your Windows computer should be in the same LAN.
+        2. Download the already configured nginx and unzip it. 
+        3. Place your wordlists and cards into directory `WWW\` of nginx.
+        4. Open `cmd` and enter `ipconfig` and press ENTER key. Find your computer ip in LAN.
+        5. Import the files via `http://[Your IP Address]:8080/[File name].[Its extension name]`
+    4. How to use synchonization
+        Please sign up a Baidu account and login Baidu NetDisk at least once. Then, follow these steps: 
+        1. open [ Baidu NetDisk Open Platform](https://pan.baidu.com/union); 
+        2. click [Apply to join] in the upper right corner and finish the application; 
+        3. click [Console] and create an app; 
+        4. view the details of applications and copy [AppKey] to the corresponding text input in the login procedure in wordgets.
+        
+        Attention:
+        1. You'd better not open the software until having synchonized at other devices.
+        2. You should terminate the app when you don't want to continue to remember any more.
+        3. If synchonization is failed and a message tells you that there is no network connection, it might be an outcome of the running of the network proxy app like Clash.
 
-Known problems:
+3.  Known issues
+    1.  [On windows] The scroll bars in Settings are dysfunctional. You can stretch the window for complete display.
+    2.  [On MacOS] The widgets cannot adjust automatically.
 
-已知问题：
-
-*   **Be lag when changing cards**. The bigger the size of the used Excel file is, the slower the next cards displays. However, when the Excel saves as .csv by Excel 2021 or WPS 2023 I tested, the phonetic symbols become messy codes even if encoded again and that is why I does not use this way though .csv is read much faster than .xlsx in Python. ** Recommend multiple split wordlists instead of the whole one**
-
-    切换单词卡有卡顿。使用的Excel文件越大，显示下一张卡片也就越慢。然而，我测试的在Excel 2021或WPS2023里将Excel另存为.csv，音标会成乱码，即使重新编码也是一样。因此，尽管python读取.csv文件远远快于.xlsx，我也没采用这种方式。**建议将一整个词表分成几个**
-    
-*   Scroll bars in Management does not work in Windows. Currently, when the information of a card or a word list you add just displays abnormally, you should change the window size of Management.
-
-    管理器的滚动条在Windows上失效。当前，当你添加的卡片或者单词表信息显示异常，你需要调整管理器的窗口大小。
-*   There could be something unreasonable in the used memory algorithm [SuperMemo2](https://pypi.org/project/supermemo2/). The selection of feeling strange(quality=0) and vague(quality=2) will return the same next review date (i.e. 1 day later). Currently the solution is that a word with quality=0 should be review today. Also, I have not seen what regulation should be adopted to compute the review priority of the studied words. Currently, I use a policy that GPT recommends: the former the review date, or the smaller the value of the expression $` easiness^{repetitions}/{interval} `$ with the same review date, the urgent the review of the word.
-
-    使用的SuperMemo2算法可能有些不合理的地方。选择感到陌生（quality=0）和模糊（quality=2）得到的下一次复习日期是一致的（即都是一天后）。当前的解决方法是quality=0时，今天之内应当再次复习。此外，我没有看到如何计算学习过的单词的优先级的规则。当前，我使用的是GPT推荐的策略：复习日期越早或者相同日期的情况下表达式$` easiness^{repetitions}/{interval} `$的值越小，词的复习越紧急。
-
-
-Future plans (may not realize for heavy work):
-
-未来计划（工作繁重，也许并不会实现）：
-
-*   To add a launcher for Desktop OSs to hide the title bar and make the main program always on top, which can realize the style just like Windows Vista gadgets.
-
-    为桌面操作系统平台加一个启动器，用于隐藏标题栏并让程序始终置顶，实现类似于Windows Vista系统的小工具的样式。
-
-Welcome developers who want to help improve! Contact [leaffeather@foxmail.com](mailto://leaffeather@foxmail.com)
-
-欢迎任何想帮忙改进的开发者！请联系[leaffeather@foxmail.com](mailto://leaffeather@foxmail.com)
