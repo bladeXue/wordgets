@@ -9,7 +9,7 @@
 
 1.  Introduction
 
-    Wordgets is a word memory app based on ![Beeware](https://beeware.org/) -- a cross-platform, Python native toolkit. It has following features:
+    Wordgets is a word memory app based on [Beeware](https://beeware.org/) -- a cross-platform, Python native toolkit. It has following features:
     - **Support custom backend**. Attention: users <u>must follow the local network laws and regulations made up by corresponding network service providers</u> when using the backend to get certain web services.
     - **Support cross-device and cross-platform synchonization via Baidu NetDisk**. 
     - **Support autoplay of the audio and video**.
