@@ -4,6 +4,9 @@
 
 ### 
 
+[简体中文](https://github.com/leaffeather/wordgets/blob/main/README_schinese.md)
+
+
 ![cover](https://github.com/leaffeather/images/blob/main/wordgets_cover.png?raw=true)
 
 
