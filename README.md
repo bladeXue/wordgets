@@ -87,10 +87,11 @@
                                 
             app.run(debug = False, use_reloader = False)                        # ** Do not modify **
             ```
+            
     3. How to import cards or word lists
     
-    If you are using a Windows or a MacOS, you can simply fill the text input with absolute path of the target file. The app will always interact with these files directly, so you should not make changes on them.
-    To Android, things become more complex. Please follow these steps:
+        If you are using a Windows or a MacOS, you can simply fill the text input with absolute path of the target file. The app will always interact with these files directly, so you should not make changes on them.
+        To Android, things become more complex. Please follow these steps:
         1. Your phone and your Windows computer should be in the same LAN.
         2. Download the already configured nginx and unzip it. 
         3. Place your wordlists and cards into directory `WWW\` of nginx. Run `nginx.exe`. It will not generate windows, so just make sure you run it.
