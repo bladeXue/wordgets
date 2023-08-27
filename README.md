@@ -94,7 +94,7 @@
         To Android, things become more complex. Please follow these steps:
         1. Your phone and your Windows computer should be in the same LAN.
         2. Download the already configured nginx and unzip it. 
-        3. Place your wordlists and cards into directory `WWW\` of nginx. Run `nginx.exe`. It will not generate windows, so just make sure you run it.
+        3. Place your wordlists and cards into directory `WWW\` of nginx. Run `nginx.exe`. As it does not generate any windows, just make sure you run it.
         4. Open `cmd` and enter `ipconfig` and press ENTER key. Find your computer ip in LAN.
         5. Import the files via `http://[Your IP Address]:8080/[File name].[Its extension name]`
     4. How to use synchonization
