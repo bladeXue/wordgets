@@ -11,9 +11,9 @@
 
 Update log:
 v1.0.1(coming soon but encountering some bugs):
-1. fix some erroneous message dialogs. (Currently encountering some bugs on macOS and trying to fix)
+(1)fix some erroneous message dialogs. (Currently encountering some bugs on macOS and trying to fix)
 
-
+---
 1.  Introduction
 
     Wordgets is a word memory app based on [Beeware](https://beeware.org/) -- a cross-platform, Python native toolkit. It has following features:
