@@ -7,6 +7,13 @@
 ![cover](https://github.com/leaffeather/images/blob/main/wordgets_cover.png?raw=true)
 
 
+**更新日志：**
+
+v1.0.1:
+
+(1)修复了一些错误的消息框。（在macOS上，如果你使用了网络代理或者网络未连接，问题对话框不允许你做出任何选择。请在解决后重启软件。）
+
+---
 1.  简介
 
     Wordgets是一个桌面背单词软件，基于跨平台Python原生框架的[Beeware](https://beeware.org/)开发。具有如下特点：
