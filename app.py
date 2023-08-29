@@ -2011,7 +2011,7 @@ class wordgets(toga.App):
                     else:
                         return
             except Exception: #Network Error
-                if await self.main_window.error_dialog(g_strErrorDialogTitle, g_strQuestionDialogMsg_Disconnected) == True:
+                if await self.main_window.question_dialog(g_strErrorDialogTitle, g_strQuestionDialogMsg_Disconnected) == True:
                     continue
                 else:
                     return
