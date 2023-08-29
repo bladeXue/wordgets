@@ -11,9 +11,9 @@
 
 **Update log:**
 
-v1.0.1(coming soon but encountering some bugs):
+v1.0.1:
 
-(1)fix some erroneous message dialogs. (Currently encountering some bugs on macOS and trying to fix)
+(1)fix some erroneous message dialogs. (On macOS, if you are using an network proxy or the network is disconnected, the question dialog does not allow you to make any choices. Please fix it and restart the app.)
 
 ---
 1.  Introduction
