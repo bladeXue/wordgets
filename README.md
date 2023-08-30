@@ -11,11 +11,11 @@
 
 **Update log:**
 
-v1.0.2:
+v1.0.2: (2023/8/30)
 
 (1) Fix some bugs in the code. Found a bug(refer to Known issues 4)
 
-v1.0.1:
+v1.0.1: (2023/8/29)
 
 (1) Fix some erroneous message dialogs. Found a bug(refer to Known issues 3)
 
