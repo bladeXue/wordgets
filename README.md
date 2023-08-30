@@ -11,6 +11,10 @@
 
 **Update log:**
 
+v1.0.3: (2023/8/30)
+
+(1) Solve Know issues 4 by mandatory account logout 
+
 v1.0.2: (2023/8/30)
 
 (1) Fix some bugs in the code. Found a bug(refer to Known issues 4)
@@ -125,4 +129,4 @@ v1.0.1: (2023/8/29)
     1.  [On windows] The scroll bars in Settings are dysfunctional. You can stretch the window for complete display.
     2.  [On macOS] The widgets cannot adjust automatically.
     3.  [On macOS] If you are using an network proxy or the network is disconnected, the question dialog will not not allow you to make any choices. Please fix it and restart the app.
-    4.  [On macOS] If you want to change the wordlists or cards on other devices, you should firstly logout your Baidu account and then change. Otherwise, you may encounter an frozen error dialog.
+    4.  ~~[On macOS] If you want to change the wordlists or cards on other devices, you should firstly logout your Baidu account and then change. Otherwise, you may encounter an frozen error dialog.~~
