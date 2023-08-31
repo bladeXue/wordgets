@@ -116,8 +116,8 @@ v1.0.1: (2023/8/29)
         如果你使用的是Windows或MacOS，你可以简单地在输入框内填上目标文件的绝对路径。此应用总是会和这些文件交互，因而不要动它们。
         对于Android，事情变得有些复杂。请按照如下步骤：
         1. 你的手机和Windows电脑应处在同一局域网内。
-        2. 下载已经配置过了的nginx并解压Download the already configured nginx and unzip it. 
-        3. Place your wordlists and cards into directory `WWW\` of nginx. 运行nginx.exe，它不会有窗口产生，因此只要确保你运行了就行。
+        2. 下载已经配置过了的nginx并解压> 
+        3. 将你的单词表和卡片放到nginx的`WWW\`目录下后. 运行nginx.exe，它不会有窗口产生，因此只要确保你运行了就行。
         4. 打开`cmd`，输入`ipconfig`回车。找到你的电脑局域网ip地址。
         5. 导入文件用`http://[你的IP地址]:8080/[文件名].[后缀名]`
    
