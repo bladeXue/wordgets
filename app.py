@@ -22,6 +22,7 @@ import shutil
 import asyncio
 import urllib.request
 import toga.platform 
+import zipfile
 
 # Global variables
 g_strCurrentOS      = toga.platform.current_platform
@@ -103,6 +104,17 @@ g_strQuestionDialogMsg_BrokenCloudDB        = ""
 g_strInfoDialogMsg_AboutAppId               = ""
 g_strInfoDialogMsg_SyncCompleted            = ""
 g_strErrorDialogMsg_VerificationFailed      = ""
+g_strInfoDialogTitle_Attention              = ""
+g_strInfoDialogMsg_DoNotClose               = ""
+g_strErrorDialogMsg_CanNotMigrate           = ""
+g_strLblMigrationInfo_Dyn_Step1             = ""
+g_strLblMigrationInfo_Dyn_Step2             = ""
+g_strLblMigrationInfo_Dyn_Step3             = ""
+g_strLblMigrationInfo_Dyn_Step4             = ""
+g_strLblMigrationInfo_Dyn_Step5             = ""
+g_strLblMigrationInfo_Dyn_Step6             = ""
+g_strInfoDialogMsg_MigrationCompleted       = ""
+g_strErrorDialogMsg_MigrationFailed         = ""
 
 #Temporary global
 g_strTmpNameTxt             = ""
@@ -114,6 +126,7 @@ g_bSwitchContinueNewWords   = True
 g_iTmpCntStudiedNewWords    = 0
 g_iTmpCntStudiedOldWords    = 0 # It can be over than real total of old words.
 g_iTmpSyncState             = -2
+g_bTmpProgramInitEnd           = False
 
 # Functions
 def GetRenderedHTML(strHTMLTemplateFilePath: str, strPyFilePath: str, dicDynVariables: str) -> str:
@@ -403,10 +416,30 @@ class wordgets(toga.App):
             boxSettingsBody_Row3Col2
         )
 
+        boxSettingsBody_Row4                    = toga.Box(style = Pack(direction=ROW, alignment=CENTER, padding_top= 5))
+        boxSettingsBody_Row4Col1                = toga.Box(style = Pack(direction = ROW, width = 150))
+        self.lblMigration_boxSettingsBody       = toga.Label("", style = Pack(background_color = TRANSPARENT))
+        boxSettingsBody_Row4Col1.add(
+            self.lblMigration_boxSettingsBody
+        )
+
+        boxSettingsBody_Row4Col2                = toga.Box(style = Pack(direction = ROW, alignment = CENTER))
+        self.btnMigrateFromAnki_boxSettingsBody    = toga.Button("", style = Pack(background_color = TRANSPARENT), on_press = self.cbMigrateFromAnkiOnPress)
+        boxSettingsBody_Row4Col2.add(
+            self.btnMigrateFromAnki_boxSettingsBody
+        )
+
+        boxSettingsBody_Row4.add(
+            boxSettingsBody_Row4Col1,
+            boxSettingsBody_Row4Col2
+        )
+
+
         self.boxSettingsBody.add(
             boxSettingsBody_Row1,
             boxSettingsBody_Row2,
-            boxSettingsBody_Row3
+            boxSettingsBody_Row3,
+            boxSettingsBody_Row4
         )
         
         # Library body
@@ -592,6 +625,37 @@ class wordgets(toga.App):
 
         # Windows of Cloud Services. End--------------------------------------------------------------------------------------------------------------------
 
+        # Body for migration
+        self.boxMigration = toga.Box(style = Pack(direction = COLUMN))
+        
+        boxRow1_boxMigration = toga.Box(style=Pack(direction=ROW))
+        self.lblApkgFile_boxMigration = toga.Label("",style=Pack(width =180, background_color = TRANSPARENT))
+        self.txtApkgFilePath_boxMigration = toga.TextInput(value="",style=Pack(flex = 1))
+        boxRow1_boxMigration.add(
+            self.lblApkgFile_boxMigration,
+            self.txtApkgFilePath_boxMigration
+        )
+
+        boxRow2_boxMigration = toga.Box(style=Pack(direction=ROW, padding_top = 5))
+        self.lblSelectWordList_boxMigration = toga.Label("",style=Pack(width =180, background_color = TRANSPARENT))
+        self.cboWordLists_boxMigration = toga.Selection(style=Pack(flex = 1), items = None)
+        boxRow2_boxMigration.add(
+            self.lblSelectWordList_boxMigration,
+            self.cboWordLists_boxMigration
+        )
+
+        self.btnMigrate_boxMigration = toga.Button("",style=Pack(flex = 1,padding_top=20),on_press=self.cbMigrate)
+        self.lblMigrationInfo_boxMigration = toga.Label("", style=Pack(flex = 1, background_color = TRANSPARENT))
+        self.prgRateOfMigration_boxMigration = toga.ProgressBar(style=Pack(flex = 1))
+
+        self.boxMigration.add(
+            boxRow1_boxMigration,
+            boxRow2_boxMigration,
+            self.btnMigrate_boxMigration,
+            self.lblMigrationInfo_boxMigration,
+            self.prgRateOfMigration_boxMigration
+        )
+
         # Read language file
         self.m_dictLanguages = {}
         with open(g_strLangPath, "r") as f:
@@ -674,6 +738,8 @@ class wordgets(toga.App):
                 asyncio.run(self.SyncDBToLocal(None))
         else:
             self.btnSync_boxIndexBody.enabled = False
+        global g_bTmpProgramInitEnd
+        g_bTmpProgramInitEnd = True
 
         if bAllFilesAreValid == True and os.path.exists(g_strDBPath) == True: # Not support displaying an error dialog when no operation on the just executed program. If so, re-config is required.
             lsValidWordlists = []
@@ -1567,6 +1633,188 @@ class wordgets(toga.App):
         shutil.rmtree(os.path.join(g_strDataPath,"Cache"), True)
         self.lblCacheSize_Row3Col2.text = str(round(GetFolderSize(os.path.join(g_strDataPath, "Cache")) / 1024 / 1024, 2)) + " MB"
 
+    def cbMigrateFromAnkiOnPress(self, widget):
+        while len(self.boxBody.children) != 0:
+            self.boxBody.remove(self.boxBody.children[0])
+        self.boxBody.add(self.boxMigration)
+        self.txtApkgFilePath_boxMigration.value = ""
+        self.cboWordLists_boxMigration.items = list(g_dictWordLists.keys())
+        self.prgRateOfMigration_boxMigration.value = 0
+        self.lblMigrationInfo_boxMigration.text = ""
+    
+    async def cbMigrate(self, widget):
+        strApkgFilePath = self.txtApkgFilePath_boxMigration.value
+        wordlist = self.cboWordLists_boxMigration.value
+        if strApkgFilePath == "" and (wordlist == None or wordlist == ""):
+            self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_CanNotMigrate)
+            return
+
+        bDeleteApkg = False
+        if strApkgFilePath[:4]=="http":
+            try:
+                response = requests.get(strApkgFilePath, stream = True)
+                filename = "anki_dl.apkg"
+                strFileWriteTo = os.path.join(g_strDataPath, filename)
+                with open(strFileWriteTo, "wb") as f:
+                    for chunk in response.iter_content(chunk_size = 1024*1024):
+                            if chunk:
+                                f.write(chunk)
+                strApkgFilePath = strFileWriteTo
+                bDeleteApkg = True
+            except:
+                self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_DownloadFailed)
+                return
+            
+        await self.main_window.info_dialog(g_strInfoDialogTitle_Attention, g_strInfoDialogMsg_DoNotClose)
+        
+        strApkgFolder = os.path.dirname(strApkgFilePath)
+        strApkgFileNameWithExtension = os.path.basename(strApkgFilePath)
+        strApkgFileName = os.path.splitext(strApkgFileNameWithExtension)[0]
+        strExtractToFolder = os.path.join(
+            strApkgFolder,
+            strApkgFileName
+        )
+        os.makedirs(strExtractToFolder, exist_ok=True)
+
+        try:
+            self.lblMigrationInfo_boxMigration.text = g_strLblMigrationInfo_Dyn_Step1
+            zip_file = zipfile.ZipFile(strApkgFilePath)
+            zip_file.extractall(strExtractToFolder)
+            strAnki21FilePath = os.path.join(strExtractToFolder,"collection.anki21")
+            if not os.path.exists(strAnki21FilePath):
+                raise Exception
+            self.lblMigrationInfo_boxMigration.text = g_strLblMigrationInfo_Dyn_Step2
+            connAnkiDB = sqlite3.connect(strAnki21FilePath)
+            cursorAnkiDB = connAnkiDB.cursor()
+            cursorAnkiDB.execute('SELECT id, cid, ease, ivl, type FROM revlog')
+            lsRevlog = cursorAnkiDB.fetchall()
+            cursorAnkiDB.execute('SELECT id, nid, ord, reps FROM cards')
+            lsCards = cursorAnkiDB.fetchall()
+            cursorAnkiDB.execute('SELECT id, sfld FROM notes')
+            lsNotes = cursorAnkiDB.fetchall()
+            connAnkiDB.close()
+            dictNotes = {item[0]: item[1] for item in lsNotes}
+            iLenLsRevlog = len(lsRevlog)
+            iCnt = 0
+            while iCnt < iLenLsRevlog:
+                for i in range(0, iCnt):
+                    if lsRevlog[i][1] == lsRevlog[iCnt][1]:
+                        lsRevlog = lsRevlog[:i]+lsRevlog[i+1:]
+                        iCnt-=1
+                        iLenLsRevlog = len(lsRevlog)
+                        break
+                iCnt+=1
+            dictMergedCardsAndNotes = {}
+            for i in range(len(lsCards)):
+                dictMergedCardsAndNotes[lsCards[i][0]] = [dictNotes[lsCards[i][1]], lsCards[i][2], lsCards[i][3]]
+            
+            self.lblMigrationInfo_boxMigration.text = g_strLblMigrationInfo_Dyn_Step3
+            strWordListFilePath = g_dictWordLists[wordlist]['FilePath']
+            xlsx = load_workbook(strWordListFilePath, read_only = True)
+            sheet = xlsx.worksheets[0]
+            iRow = 2
+            dictWordID = {}
+            for row in sheet.iter_rows(min_row=2, max_row=sheet.max_row, values_only=True):
+                self.prgRateOfMigration_boxMigration.value = (i - 1)/(sheet.max_row- 1)
+                dictWordID[row[0]] = iRow
+                iRow+=1
+            self.prgRateOfMigration_boxMigration.value = 0
+
+            self.lblMigrationInfo_boxMigration.text = g_strLblMigrationInfo_Dyn_Step4
+            lsMigrationContents = []
+            for i in range(len(lsRevlog)):
+                self.prgRateOfMigration_boxMigration.value = (i+1)/len(lsRevlog)
+                id = lsRevlog[i][0]
+                cid = lsRevlog[i][1]
+                cid_values = dictMergedCardsAndNotes[cid]
+                sfld = cid_values[0]
+                ord = cid_values[1]
+                reps = cid_values[2]
+                ease = lsRevlog[i][2]
+                ivl = lsRevlog[i][3]
+                type_ = lsRevlog[i][4]
+                word = sfld
+                word_no = -1
+                try:
+                    word_no = dictWordID[word]
+                except:
+                    pass
+                card_type = ord + 1
+                review_date_num = id
+                interval = -1
+                if ivl >= 0:
+                    review_date_num += ivl * 24 * 60 * 60 * 1000
+                    interval = ivl
+                else:
+                    review_date_num += -ivl * 1000
+                    interval = 0
+                timestamp = review_date_num / 1000
+                dt = datetime.fromtimestamp(timestamp)
+                review_date = dt.strftime('%Y-%m-%d')
+                repetitions = reps
+                easiness = -1
+                if type_ == 0 or type_ == 2:
+                    if ease == 1:
+                        easiness = 0
+                    elif ease == 2:
+                        easiness = 2
+                    elif ease >= 3:
+                        easiness =4
+                else:
+                    if ease == 1:
+                        easiness = 0
+                    elif ease == 2 or ease == 3:
+                        easiness = 2
+                    elif ease >= 4:
+                        easiness = 4
+                if word_no == -1:
+                    continue
+                lsMigrationContents.append(
+                    (
+                    word_no,
+                    card_type,
+                    review_date,
+                    easiness,
+                    interval,
+                    repetitions)
+                )
+            self.prgRateOfMigration_boxMigration.value = 0
+
+            self.lblMigrationInfo_boxMigration.text = g_strLblMigrationInfo_Dyn_Step5
+
+            connWordgetDB = sqlite3.connect(g_strDBPath)
+            cursorWordgetDB = connWordgetDB.cursor()
+
+            for i in range(len(lsMigrationContents)):
+                self.prgRateOfMigration_boxMigration.value = (i+1)/len(lsMigrationContents)
+
+                word_no = lsMigrationContents[i][0]
+                card_type = lsMigrationContents[i][1]
+                review_date = lsMigrationContents[i][2]
+                easiness = lsMigrationContents[i][3]
+                interval = lsMigrationContents[i][4]
+                repetitions = lsMigrationContents[i][5]
+
+                cursorWordgetDB.execute("UPDATE statistics SET review_date=?, easiness=?, interval=?, repetitions=? WHERE wordlist=? AND word_no=? AND card_type=?", 
+                    (review_date, easiness, interval, repetitions, wordlist, word_no, card_type))
+            connWordgetDB.commit()
+            connWordgetDB.close()
+            await self.main_window.info_dialog(g_strInfoDialogTitle, g_strInfoDialogMsg_MigrationCompleted)
+
+        except:
+            await self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_MigrationFailed)
+
+        self.lblMigrationInfo_boxMigration.text = g_strLblMigrationInfo_Dyn_Step6
+        try:
+            if os.path.exists(strExtractToFolder) == True and strExtractToFolder != "":
+                shutil.rmtree(strExtractToFolder)
+            
+        except:
+            pass
+            
+        self.lblMigrationInfo_boxMigration.text = ""
+        self.prgRateOfMigration_boxMigration.value = 0
+        
     # Online services---------------------------------------------------------------------------------------------------------------------------------------
     def cbLoginCloudSvc(self, widget):
         while len(self.boxBody.children) != 0:
@@ -1976,13 +2224,13 @@ class wordgets(toga.App):
     async def SyncDBToLocal(self, widget): #Only work on account login or launching
         while True:
             try:
+                global g_strAccessToken, g_strUsername
                 iFileId = self.GetCloudDBFileID()
                 if iFileId == 0: # New account
                     self.main_window.info_dialog(g_strInfoDialogTitle, g_strInfoDialogMsg_NotSyncYet)
                     return
                 elif iFileId == -1: # Login failed.
                     self.main_window.info_dialog(g_strInfoDialogTitle, g_strInfoDialogMsg_LoginFailure)
-                    global g_strAccessToken, g_strUsername
                     g_strAccessToken = ""
                     g_strUsername = ""
                     self.lblLoginState_Row2Col2.text                = self.m_dictLanguages[g_strDefaultLang]["STR_LBL_LOGINSTATE_TEXT_LOGOUT"]
@@ -1998,7 +2246,16 @@ class wordgets(toga.App):
                     else:
                         return
                 elif iDBChangeState == 0:  #Incompatible DB
-                    self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_IncompatibleDB)
+                    if g_strCurrentOS == 'macOS' and g_bTmpProgramInitEnd == False:
+                        self.main_window.info_dialog(g_strInfoDialogTitle, g_strInfoDialogMsg_LoginFailure)
+                        g_strAccessToken = ""
+                        g_strUsername = ""
+                        self.lblLoginState_Row2Col2.text                = self.m_dictLanguages[g_strDefaultLang]["STR_LBL_LOGINSTATE_TEXT_LOGOUT"]
+                        self.btnSync_boxIndexBody.enabled = False
+                        self.cbBtnSettingsOnPress(None)
+                        return
+                    else:
+                        self.main_window.error_dialog(g_strErrorDialogTitle, g_strErrorDialogMsg_IncompatibleDB)
                     self.cbBtnLibraryOnPress(None) 
                     return
                 elif iDBChangeState == 1: #Success
@@ -2128,7 +2385,26 @@ class wordgets(toga.App):
         g_strInfoDialogMsg_SyncCompleted                    = self.m_dictLanguages[g_strDefaultLang]["STR_INFODIALOG_MSG_SYNCCOMPLETED"]
         g_strErrorDialogMsg_VerificationFailed              = self.m_dictLanguages[g_strDefaultLang]["STR_ERRORDIALOG_MSG_VERIFICATIONFAILED"]
         self.btnManualVerification.text                     = self.m_dictLanguages[g_strDefaultLang]["STR_BTN_MANUALVERIFICATION_TEXT"]
-    
+        self.lblMigration_boxSettingsBody.text              = self.m_dictLanguages[g_strDefaultLang]["STR_LBL_MIGRATION_TEXT"]
+        self.btnMigrateFromAnki_boxSettingsBody.text        = self.m_dictLanguages[g_strDefaultLang]["STR_BTN_MIGRATEFROMANKI_TEXT"]
+        self.lblApkgFile_boxMigration.text                  = self.m_dictLanguages[g_strDefaultLang]["STR_LBL_APKG_TEXT"]
+        self.lblSelectWordList_boxMigration.text            = self.m_dictLanguages[g_strDefaultLang]["STR_LBL_SELECTWORDLIST_TEXT"]
+        self.btnMigrate_boxMigration.text                   = self.m_dictLanguages[g_strDefaultLang]["STR_BTN_MIGRATE_TEXT"]
+        global g_strInfoDialogTitle_Attention, g_strInfoDialogMsg_DoNotClose, g_strErrorDialogMsg_CanNotMigrate,\
+            g_strLblMigrationInfo_Dyn_Step1, g_strLblMigrationInfo_Dyn_Step2, g_strLblMigrationInfo_Dyn_Step3, g_strLblMigrationInfo_Dyn_Step4,\
+            g_strLblMigrationInfo_Dyn_Step5, g_strLblMigrationInfo_Dyn_Step6, g_strInfoDialogMsg_MigrationCompleted, g_strErrorDialogMsg_MigrationFailed
+        g_strInfoDialogTitle_Attention                      = self.m_dictLanguages[g_strDefaultLang]['STR_INFODIALOG_TITLE_ATTENTION']
+        g_strInfoDialogMsg_DoNotClose                       = self.m_dictLanguages[g_strDefaultLang]['STR_INFODIALOG_MSG_DONOTCLOSE']
+        g_strErrorDialogMsg_CanNotMigrate                   = self.m_dictLanguages[g_strDefaultLang]['STR_ERRORDIALOG_MSG_CANNOTMIGRATE']
+        g_strLblMigrationInfo_Dyn_Step1                     = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_MIGRATIONINFO_DYN_STEP1']
+        g_strLblMigrationInfo_Dyn_Step2                     = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_MIGRATIONINFO_DYN_STEP2']
+        g_strLblMigrationInfo_Dyn_Step3                     = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_MIGRATIONINFO_DYN_STEP3']
+        g_strLblMigrationInfo_Dyn_Step4                     = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_MIGRATIONINFO_DYN_STEP4']
+        g_strLblMigrationInfo_Dyn_Step5                     = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_MIGRATIONINFO_DYN_STEP5']
+        g_strLblMigrationInfo_Dyn_Step6                     = self.m_dictLanguages[g_strDefaultLang]['STR_LBL_MIGRATIONINFO_DYN_STEP6']
+        g_strInfoDialogMsg_MigrationCompleted               = self.m_dictLanguages[g_strDefaultLang]['STR_INFODIALOG_MSG_MIGRATIONCOMPLETED']
+        g_strErrorDialogMsg_MigrationFailed                 = self.m_dictLanguages[g_strDefaultLang]['STR_ERRORDIALOG_MSG_MIGRATIONFAILED']
+
     def ChangeSyncBtnText(self, iState): # WITHOUT COPY, it will cause abnormal phenomenon
         if iState == 0:
             self.btnSync_boxIndexBody.style.update(background_color = TRANSPARENT)
@@ -2442,6 +2718,6 @@ class wordgets(toga.App):
             return True
         except Exception:
             return False
-
+        
 def main():
     return wordgets()
