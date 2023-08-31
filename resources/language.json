@@ -85,7 +85,23 @@
         "STR_LBL_CLEARCACHE_TEXT": "Inner-webbroswer cache",
         "STR_BTN_CLEARCACHE_TEXT": "Clear",
         "STR_BTN_MANUALVERIFICATION_TEXT": "Manual verification (After [OAuth] appears)",
-        "STR_ERRORDIALOG_MSG_VERIFICATIONFAILED": "Verification failed."
+        "STR_ERRORDIALOG_MSG_VERIFICATIONFAILED": "Verification failed.",
+        "STR_LBL_MIGRATION_TEXT": "Migration",
+        "STR_BTN_MIGRATEFROMANKI_TEXT": "From Anki",
+        "STR_LBL_APKG_TEXT": "Anki apkg",
+        "STR_LBL_SELECTWORDLIST_TEXT":"Select a target wordlist",
+        "STR_BTN_MIGRATE_TEXT": "Start migration",
+        "STR_INFODIALOG_TITLE_ATTENTION": "Attention",
+        "STR_INFODIALOG_MSG_DONOTCLOSE":"Do not close the program during migration!",
+        "STR_ERRORDIALOG_MSG_CANNOTMIGRATE": "Cannot migrate.",
+        "STR_LBL_MIGRATIONINFO_DYN_STEP1": "Step 1/5: Extracting from apkg",
+        "STR_LBL_MIGRATIONINFO_DYN_STEP2": "Step 2/5: Checking database",
+        "STR_LBL_MIGRATIONINFO_DYN_STEP3": "Step 3/5: Reading wordlist",
+        "STR_LBL_MIGRATIONINFO_DYN_STEP4": "Step 4/5: Preparing migration data",
+        "STR_LBL_MIGRATIONINFO_DYN_STEP5": "Step 5/5: Migrating",
+        "STR_LBL_MIGRATIONINFO_DYN_STEP6": "Clearing temporary files...",
+        "STR_INFODIALOG_MSG_MIGRATIONCOMPLETED": "Migration completed. You'd better [synchronize] at once on [Index] if you enable the cloud service.",
+        "STR_ERRORDIALOG_MSG_MIGRATIONFAILED": "Migration failed."
     },
     "简体中文": {
         "STR_BTN_INDEX_TEXT": "首页",
@@ -173,6 +189,22 @@
         "STR_LBL_CLEARCACHE_TEXT": "内置浏览器缓存",
         "STR_BTN_CLEARCACHE_TEXT": "清除",
         "STR_BTN_MANUALVERIFICATION_TEXT": "手动验证（[OAuth]出现后）",
-        "STR_ERRORDIALOG_MSG_VERIFICATIONFAILED": "验证失败"
+        "STR_ERRORDIALOG_MSG_VERIFICATIONFAILED": "验证失败",
+        "STR_LBL_MIGRATION_TEXT": "迁移",
+        "STR_BTN_MIGRATEFROMANKI_TEXT": "从Anki",
+        "STR_LBL_APKG_TEXT": "Anki apkg",
+        "STR_LBL_SELECTWORDLIST_TEXT":"选择目标单词表",
+        "STR_BTN_MIGRATE_TEXT": "开始迁移",
+        "STR_INFODIALOG_TITLE_ATTENTION": "注意",
+        "STR_INFODIALOG_MSG_DONOTCLOSE":"不要在迁移过程中关闭程序！",
+        "STR_ERRORDIALOG_MSG_CANNOTMIGRATE": "无法迁移。",
+        "STR_LBL_MIGRATIONINFO_DYN_STEP1": "步骤1/5：提取apkg",
+        "STR_LBL_MIGRATIONINFO_DYN_STEP2": "步骤2/5：检查数据库",
+        "STR_LBL_MIGRATIONINFO_DYN_STEP3": "步骤3/5：读取单词表",
+        "STR_LBL_MIGRATIONINFO_DYN_STEP4": "步骤4/5：准备迁移数据",
+        "STR_LBL_MIGRATIONINFO_DYN_STEP5": "步骤5/5：迁移中",
+        "STR_LBL_MIGRATIONINFO_DYN_STEP6": "正在清理临时文件……",
+        "STR_INFODIALOG_MSG_MIGRATIONCOMPLETED": "迁移完成。如果您启用了云服务，最好在[首页]立刻[同步]。",
+        "STR_ERRORDIALOG_MSG_MIGRATIONFAILED": "迁移失败。"
     }
 }
