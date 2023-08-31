@@ -13,21 +13,27 @@
 
 v1.1.0: (2023/8/31)
 
-(1) Support importing scheduling information from Anki apkg (Check "Including scheduling information" before export)
+[+] Support importing scheduling information from Anki apkg (Check "Including scheduling information" before export)
 
-(2) Solve the issue of the version of the app on Android.
+[+] Solve the issue of the version of the app on Android.
+
+[!] Found a bug(refer to Known issues 5)
 
 v1.0.3: (2023/8/30)
 
-(1) Solve Know issues 4 by mandatory account logout 
+[+] Solve Know issues 4 by mandatory account logout 
 
 v1.0.2: (2023/8/30)
 
-(1) Fix some bugs in the code. Found a bug(refer to Known issues 4)
+[+} Fix some bugs in the code. 
+
+~~[!] Found a bug(refer to Known issues 4)~~
 
 v1.0.1: (2023/8/29)
 
-(1) Fix some erroneous message dialogs. Found a bug(refer to Known issues 3)
+[+] Fix some erroneous message dialogs. 
+
+[!]Found a bug(refer to Known issues 3)
 
 ---
 1.  Introduction
@@ -136,3 +142,4 @@ v1.0.1: (2023/8/29)
     2.  [On macOS] The widgets cannot adjust automatically.
     3.  [On macOS] If you are using an network proxy or the network is disconnected, the question dialog will not not allow you to make any choices. Please fix it and restart the app.
     4.  ~~[On macOS] If you want to change the wordlists or cards on other devices, you should firstly logout your Baidu account and then change. Otherwise, you may encounter an frozen error dialog.~~
+    5.  [On windows] When you remember the word, do not change the window size. Otherwise, the slider for no more review would be dysfunctional.
