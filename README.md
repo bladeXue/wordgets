@@ -15,7 +15,7 @@ v1.1.0: (2023/8/31)
 
 (1) Support importing scheduling information from Anki apkg (Check "Including scheduling information" before export)
 
-(2) Solve the version of android apk.
+(2) Solve the issue of the version of the app on Android.
 
 v1.0.3: (2023/8/30)
 
