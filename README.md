@@ -11,6 +11,10 @@
 
 **Update log:**
 
+v1.1.1: (2023/9/1)
+
+[+] Fix some bugs.
+
 v1.1.0: (2023/8/31)
 
 [+] Support importing scheduling information from Anki apkg (Check "Including scheduling information" before export)
