@@ -1263,6 +1263,7 @@ class wordgets(toga.App):
         
         self.cboCurWordList_boxIndexBody.items = lsValidWordlists
         self.cboCurWordList_boxIndexBody.value = g_strOpenedWordListName
+        self.cboCurWordList_boxIndexBody.on_select = self.cbChangeCurWordList
         
         if g_strUsername != "":
             await self.SyncDBToLocal(None)
